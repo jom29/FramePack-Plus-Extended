@@ -1,0 +1,13 @@
+STEP 1
+cd /d "C:\Users\ADMIN\Pictures\KeyFrames"
+
+
+STEP 2
+python main.py
+
+
+C:\Users\ADMIN\Pictures\KeyFrames\projects\demo\images\Frame4.png
+
+pip install gradio_client
+
+pip install requests
