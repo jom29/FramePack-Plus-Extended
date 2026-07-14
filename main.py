@@ -21,30 +21,58 @@ def main():
     )
 
     project.render.webui_root = (
-        input(f"FramePack Plus WebUI [{FRAMEPACK_WEBUI}] : ").strip() or FRAMEPACK_WEBUI
+        input(
+            f"FramePack Plus WebUI [{FRAMEPACK_WEBUI}] : "
+        ).strip()
+        or FRAMEPACK_WEBUI
     )
 
-    project.render.segment_folder = input("Segment Output Folder : ").strip()
+    project.render.segment_folder = (
+        input(
+            "Segment Output Folder : "
+        ).strip()
+    )
 
     if project.render.segment_folder:
 
-        os.makedirs(project.render.segment_folder, exist_ok=True)
+        os.makedirs(
+            project.render.segment_folder,
+            exist_ok=True
+        )
 
     # ------------------------------------------------------------
     # Render Settings
     # ------------------------------------------------------------
 
-    res = input(f"Resolution [{DEFAULT_RESOLUTION}] : ").strip()
+    res = input(
+        f"Resolution [{DEFAULT_RESOLUTION}] : "
+    ).strip()
 
-    project.render.resolution = int(res) if res else DEFAULT_RESOLUTION
+    project.render.resolution = (
+        int(res)
+        if res
+        else DEFAULT_RESOLUTION
+    )
 
-    dur = input(f"Duration [{DEFAULT_DURATION}] : ").strip()
+    dur = input(
+        f"Duration [{DEFAULT_DURATION}] : "
+    ).strip()
 
-    project.render.duration = float(dur) if dur else DEFAULT_DURATION
+    project.render.duration = (
+        float(dur)
+        if dur
+        else DEFAULT_DURATION
+    )
 
-    steps = input(f"Steps [{DEFAULT_STEPS}] : ").strip()
+    steps = input(
+        f"Steps [{DEFAULT_STEPS}] : "
+    ).strip()
 
-    project.render.steps = int(steps) if steps else DEFAULT_STEPS
+    project.render.steps = (
+        int(steps)
+        if steps
+        else DEFAULT_STEPS
+    )
 
     # ------------------------------------------------------------
     # Prompts
@@ -53,13 +81,25 @@ def main():
     print()
     print("Leave blank to use default prompts.")
 
-    positive = input("Positive Prompt : ").strip()
+    positive = input(
+        "Positive Prompt : "
+    ).strip()
 
-    negative = input("Negative Prompt : ").strip()
+    negative = input(
+        "Negative Prompt : "
+    ).strip()
 
-    project.render.positive_prompt = positive if positive else DEFAULT_POSITIVE_PROMPT
+    project.render.positive_prompt = (
+        positive
+        if positive
+        else DEFAULT_POSITIVE_PROMPT
+    )
 
-    project.render.negative_prompt = negative if negative else DEFAULT_NEGATIVE_PROMPT
+    project.render.negative_prompt = (
+        negative
+        if negative
+        else DEFAULT_NEGATIVE_PROMPT
+    )
 
     print()
     print("Global prompts loaded.")
@@ -75,13 +115,21 @@ def main():
 
         phase = Phase()
 
-        phase.start_image = input("Start Image : ").strip()
+        phase.start_image = input(
+            "Start Image : "
+        ).strip()
 
-        phase.end_image = input("End Image : ").strip()
+        phase.end_image = input(
+            "End Image : "
+        ).strip()
 
-        phase.output_name = f"segment_{i + 1:03}.mp4"
+        phase.output_name = (
+            f"segment_{i + 1:03}.mp4"
+        )
 
-        project.phases.append(phase)
+        project.phases.append(
+            phase
+        )
 
     # ------------------------------------------------------------
     # Summary
@@ -121,11 +169,15 @@ def main():
         print(f"Output : {phase.output_name}")
 
     # ------------------------------------------------------------
-    # Launch
+    # Launch FramePack
     # ------------------------------------------------------------
 
     adapter = FramePackAdapter(
-        runtime_root=project.render.runtime_root, webui_root=project.render.webui_root
+
+        runtime_root=project.render.runtime_root,
+
+        webui_root=project.render.webui_root
+
     )
 
     try:
@@ -142,33 +194,57 @@ def main():
 
         adapter.connect()
 
+        # --------------------------------------------------------
+        # Render All Phases
+        # --------------------------------------------------------
+
+        for index, phase in enumerate(project.phases, start=1):
+
+            print()
+
+            print("===================================")
+            print(f"Rendering Phase {index}")
+            print("===================================")
+
+            result = adapter.render_phase(
+
+                start_image=phase.start_image,
+
+                end_image=phase.end_image,
+
+                prompt=project.render.positive_prompt,
+
+                negative_prompt=project.render.negative_prompt,
+
+                duration=project.render.duration,
+
+                resolution=project.render.resolution,
+
+                steps=project.render.steps,
+
+                segment_folder=project.render.segment_folder,
+
+                output_name=phase.output_name
+
+            )
+
+            print()
+
+            print("===================================")
+            print(f"Phase {index} Finished")
+            print("===================================")
+
+            print(result)
+
         print()
 
         print("===================================")
-        print("Starting Render Test")
+        print("ALL PHASES COMPLETED")
         print("===================================")
 
-        result = adapter.render_phase(
-            start_image=project.phases[0].start_image,
-            end_image=project.phases[0].end_image,
-            prompt=project.render.positive_prompt,
-            negative_prompt=project.render.negative_prompt,
-            duration=project.render.duration,
-            resolution=project.render.resolution,
-            steps=project.render.steps,
-            segment_folder=project.render.segment_folder,
-            output_name=project.phases[0].output_name,
+        input(
+            "\nPress ENTER to shutdown FramePack..."
         )
-
-        print()
-
-        print("===================================")
-        print("Render Result")
-        print("===================================")
-
-        print(result)
-
-        input("\nPress ENTER to shutdown FramePack...")
 
     except Exception as ex:
 
