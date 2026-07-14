@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import threading
+import shutil
 import subprocess
 import requests
 
@@ -60,7 +61,8 @@ class FramePackAdapter:
             print("[SERVER]", line.rstrip())
 
     def render_phase(self, start_image, end_image, prompt,
-                     negative_prompt, duration, resolution, steps):
+                     negative_prompt, duration, resolution, steps,
+                     segment_folder=None, output_name=None):
 
         threading.Thread(target=self._server_log, daemon=True).start()
 
@@ -102,7 +104,22 @@ class FramePackAdapter:
 
             time.sleep(2)
 
-        return job.result(timeout=None)
+        result = job.result(timeout=None)
+
+        if segment_folder and output_name:
+            try:
+                video_path = result[0]["video"]
+                if os.path.exists(video_path):
+                    os.makedirs(segment_folder, exist_ok=True)
+                    destination = os.path.join(segment_folder, output_name)
+                    shutil.copy2(video_path, destination)
+                    print("\nVIDEO COPIED:")
+                    print(destination)
+                    result = destination
+            except Exception as ex:
+                print("Copy failed:", ex)
+
+        return result
 
     def shutdown(self):
         if self.process is None:

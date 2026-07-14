@@ -1,3 +1,5 @@
+import os
+
 from config import Project, Phase
 
 from settings import *
@@ -22,6 +24,12 @@ def main():
         input(f"FramePack Plus WebUI [{FRAMEPACK_WEBUI}] : ").strip() or FRAMEPACK_WEBUI
     )
 
+    project.render.segment_folder = input("Segment Output Folder : ").strip()
+
+    if project.render.segment_folder:
+
+        os.makedirs(project.render.segment_folder, exist_ok=True)
+
     # ------------------------------------------------------------
     # Render Settings
     # ------------------------------------------------------------
@@ -38,10 +46,23 @@ def main():
 
     project.render.steps = int(steps) if steps else DEFAULT_STEPS
 
-    project.render.positive_prompt = DEFAULT_POSITIVE_PROMPT
-    project.render.negative_prompt = DEFAULT_NEGATIVE_PROMPT
+    # ------------------------------------------------------------
+    # Prompts
+    # ------------------------------------------------------------
 
-    print("\nGlobal prompts loaded.\n")
+    print()
+    print("Leave blank to use default prompts.")
+
+    positive = input("Positive Prompt : ").strip()
+
+    negative = input("Negative Prompt : ").strip()
+
+    project.render.positive_prompt = positive if positive else DEFAULT_POSITIVE_PROMPT
+
+    project.render.negative_prompt = negative if negative else DEFAULT_NEGATIVE_PROMPT
+
+    print()
+    print("Global prompts loaded.")
 
     # ------------------------------------------------------------
     # Input Phases
@@ -49,7 +70,8 @@ def main():
 
     for i in range(3):
 
-        print(f"\nPhase {i + 1}")
+        print()
+        print(f"Phase {i + 1}")
 
         phase = Phase()
 
@@ -65,15 +87,28 @@ def main():
     # Summary
     # ------------------------------------------------------------
 
-    print("\n===================================")
+    print()
+
+    print("===================================")
     print("PROJECT SUMMARY")
     print("===================================")
 
-    print(f"Runtime    : {project.render.runtime_root}")
-    print(f"WebUI      : {project.render.webui_root}")
-    print(f"Resolution : {project.render.resolution}")
-    print(f"Duration   : {project.render.duration}")
-    print(f"Steps      : {project.render.steps}")
+    print(f"Runtime        : {project.render.runtime_root}")
+    print(f"WebUI          : {project.render.webui_root}")
+    print(f"Segment Folder : {project.render.segment_folder}")
+    print(f"Resolution     : {project.render.resolution}")
+    print(f"Duration       : {project.render.duration}")
+    print(f"Steps          : {project.render.steps}")
+
+    print()
+
+    print("Positive Prompt")
+    print(project.render.positive_prompt)
+
+    print()
+
+    print("Negative Prompt")
+    print(project.render.negative_prompt)
 
     print()
 
@@ -86,7 +121,7 @@ def main():
         print(f"Output : {phase.output_name}")
 
     # ------------------------------------------------------------
-    # Launch FramePack
+    # Launch
     # ------------------------------------------------------------
 
     adapter = FramePackAdapter(
@@ -121,6 +156,8 @@ def main():
             duration=project.render.duration,
             resolution=project.render.resolution,
             steps=project.render.steps,
+            segment_folder=project.render.segment_folder,
+            output_name=project.phases[0].output_name,
         )
 
         print()
@@ -140,8 +177,6 @@ def main():
         print("===================================")
         print("ERROR")
         print("===================================")
-
-        adapter.print_server_log()
 
         print(ex)
 
