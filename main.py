@@ -1,5 +1,10 @@
 import os
 
+import subprocess
+import sys
+
+
+
 from config import Project, Phase
 
 from settings import *
@@ -236,16 +241,40 @@ def main():
 
             print(result)
 
-        print()
+            print()
 
         print("===================================")
         print("ALL PHASES COMPLETED")
         print("===================================")
 
-        input(
-            "\nPress ENTER to shutdown FramePack..."
+        print()
+
+        print("===================================")
+        print("Stopping FramePack")
+        print("===================================")
+
+        adapter.shutdown()
+
+        print()
+
+        print("===================================")
+        print("Launching Video Stitcher")
+        print("===================================")
+
+        stitcher = os.path.join(
+            os.path.dirname(__file__),
+            "video_stitcher.py"
         )
 
+        subprocess.run(
+    [
+        sys.executable,
+        stitcher,
+        project.render.segment_folder
+    ]
+)
+
+        return
     except Exception as ex:
 
         print()
@@ -258,7 +287,11 @@ def main():
 
     finally:
 
-        adapter.shutdown()
+        try:
+
+            adapter.shutdown()
+        except Exception:
+          pass
 
 
 if __name__ == "__main__":
