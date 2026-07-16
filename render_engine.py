@@ -198,31 +198,35 @@ class RenderEngine:
 
     ):
 
-      start_image = self.controller.get_start_image()
+       start_image = self.controller.resolve_image(
+       phase.start_image
+      )
 
-      end_image = self.controller.get_end_image()
+       end_image = self.controller.resolve_image(
+         phase.end_image
+         )
 
-      positive_prompt = self.controller.get_positive_prompt()
+       positive_prompt = self.controller.get_positive_prompt()
 
-      negative_prompt = self.controller.get_negative_prompt()
+       negative_prompt = self.controller.get_negative_prompt()
 
-      duration = self.controller.get_duration()
+       duration = self.controller.get_duration()
 
-      steps = self.controller.get_steps()
+       steps = self.controller.get_steps()
 
-      resolution = self.controller.get_resolution()
+       resolution = self.controller.get_resolution()
 
-      segment_folder = str(output_video.parent)
+       segment_folder = str(output_video.parent)
 
-      output_name = output_video.name
+       output_name = output_video.name
 
-      print("--------------------------------")
+       print("--------------------------------")
 
-      print("Submitting render to FramePack...")
+       print("Submitting render to FramePack...")
 
-      print("--------------------------------")
+       print("--------------------------------")
 
-      result = self.adapter.render_phase(
+       result = self.adapter.render_phase(
 
         start_image=start_image,
 
@@ -244,15 +248,15 @@ class RenderEngine:
 
       )
 
-      print("--------------------------------")
+       print("--------------------------------")
 
-      print("Render Finished")
+       print("Render Finished")
 
-      print(result)
+       print(result)
 
-      print("--------------------------------")
+       print("--------------------------------")
 
-      return result
+       return result
 
 
 

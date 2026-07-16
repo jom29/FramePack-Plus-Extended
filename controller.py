@@ -74,9 +74,9 @@ class Controller:
 
         self.negative_prompt = ""
 
-        self.duration = 5.0
+        self.duration = 1
 
-        self.steps = 25
+        self.steps = 10
 
         self.resolution = 720
 
@@ -92,7 +92,7 @@ class Controller:
 
         self.global_duration = 1.0
 
-        self.global_steps = 3
+        self.global_steps = 10
 
         self.global_resolution = 720
 

@@ -46,7 +46,7 @@ class FramePackAdapter:
 
 
         self.process = subprocess.Popen(
-            [python, demo, "--server", "127.0.0.1", "--port", "7861"],
+            [python, demo, "--server", "127.0.0.1", "--port", "17861"],
             cwd=self.runtime_root, 
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -59,7 +59,7 @@ class FramePackAdapter:
             if self.process.poll() is not None:
                 raise RuntimeError("FramePack exited unexpectedly.")
             try:
-                if requests.get("http://127.0.0.1:7861", timeout=2).status_code == 200:
+                if requests.get("http://127.0.0.1:17861", timeout=2).status_code == 200:
                     break
             except Exception:
                 pass
@@ -70,7 +70,7 @@ class FramePackAdapter:
 
     def connect(self):
 
-      self.client = Client("http://127.0.0.1:7861")
+      self.client = Client("http://127.0.0.1:17861")
 
       print("--------------------------------")
       print("CONNECTED TO FRAMEPACK")
