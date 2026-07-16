@@ -82,6 +82,24 @@ class Controller:
 
         self.create_default_project()
 
+       # ----------------------------------------------------
+       # Global Render Settings
+       # ----------------------------------------------------
+
+        self.global_positive_prompt = "Consistent body motion toward end keyframe"
+
+        self.global_negative_prompt = "teleport"
+
+        self.global_duration = 1.0
+
+        self.global_steps = 3
+
+        self.global_resolution = 720
+
+        self.segment_folder = Path(
+        "projects/demo/segments"
+    )
+
     # --------------------------------------------------------
     # Project Initialization
     # --------------------------------------------------------
@@ -310,7 +328,38 @@ class Controller:
 
 
  
+    # --------------------------------------------------------
+    # Global Render Settings
+    # --------------------------------------------------------
 
+    def get_positive_prompt(self):
+
+     return self.global_positive_prompt
+
+
+    def get_negative_prompt(self):
+
+     return self.global_negative_prompt
+
+
+    def get_duration(self):
+
+     return self.global_duration
+
+
+    def get_steps(self):
+
+     return self.global_steps
+
+
+    def get_resolution(self):
+
+     return self.global_resolution
+
+
+    def get_segment_folder(self):
+
+     return self.segment_folder
 
 
     # --------------------------------------------------------

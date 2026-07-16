@@ -29,11 +29,25 @@ class FramePackAdapter:
         else:
             python = sys.executable
 
+        demo = os.path.join(
+        r"E:\AI\FramePack Plus\webgui",
+        "demo_gradio.py"
+        )
+
+        print("--------------------------------")
+        print("Runtime :", self.runtime_root)
+        print("WebUI   :", self.webui_root)
+
         demo = os.path.join(self.webui_root, "demo_gradio.py")
 
+        print("Demo    :", demo)
+        print("Exists? :", os.path.exists(demo))
+        print("--------------------------------")
+
+
         self.process = subprocess.Popen(
-            [python, demo, "--server", "127.0.0.1", "--port", "7860", "--inbrowser"],
-            cwd=self.webui_root,
+            [python, demo, "--server", "127.0.0.1", "--port", "7861"],
+            cwd=self.runtime_root, 
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -45,14 +59,29 @@ class FramePackAdapter:
             if self.process.poll() is not None:
                 raise RuntimeError("FramePack exited unexpectedly.")
             try:
-                if requests.get("http://127.0.0.1:7860", timeout=2).status_code == 200:
+                if requests.get("http://127.0.0.1:7861", timeout=2).status_code == 200:
                     break
             except Exception:
                 pass
             time.sleep(1)
 
+
+
+
     def connect(self):
-        self.client = Client("http://127.0.0.1:7860")
+
+      self.client = Client("http://127.0.0.1:7861")
+
+      print("--------------------------------")
+      print("CONNECTED TO FRAMEPACK")
+      print("--------------------------------")
+
+      print(self.client.view_api())
+
+      print("--------------------------------")
+
+
+
 
     def _server_log(self):
         if self.process is None or self.process.stdout is None:

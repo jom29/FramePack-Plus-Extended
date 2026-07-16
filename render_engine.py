@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Callable
-
+from adapter import FramePackAdapter
 
 class RenderEngine:
 
@@ -11,6 +11,57 @@ class RenderEngine:
         self.model_loaded = False
 
         self.cancel_requested = False
+
+
+
+        # Existing FramePack bridge
+
+        self.adapter = None
+
+
+
+    def initialize_adapter(self):
+
+        if self.adapter is not None:
+          return
+
+        print("Initializing FramePack Adapter...")
+
+        runtime_root = Path(
+          r"E:\AI\FramePack_Official\framepack_cu126_torch26"
+        )
+
+        webui_root = Path(
+         r"E:\AI\FramePack Plus\webui"
+         )
+
+        self.adapter = FramePackAdapter(
+
+        runtime_root=runtime_root,
+
+        webui_root=webui_root
+
+        )
+
+        print("Adapter created.")
+
+
+        print("Launching FramePack...")
+
+        self.adapter.launch()
+
+        print("Waiting for server...")
+
+        self.adapter.wait_until_ready()
+
+        print("Connecting client...")
+
+        self.adapter.connect()
+
+        print("FramePack Ready.")
+
+
+
 
     # --------------------------------------------------------
     # Model
@@ -59,6 +110,8 @@ class RenderEngine:
 
         progress_callback(percent, message)
         """
+
+        self.initialize_adapter()
 
         self.cancel_requested = False
 
@@ -124,42 +177,76 @@ class RenderEngine:
 
     def render_phase(
 
-        self,
+      self,
 
-        phase,
+      phase,
 
-        output_video
+      output_video
 
     ):
 
-        """
-        This will later contain the code from main.py.
+      start_image = self.controller.get_start_image()
 
-        For now it only prints.
-        """
+      end_image = self.controller.get_end_image()
 
-        print("-----------------------------")
+      positive_prompt = self.controller.get_positive_prompt()
 
-        print("Render")
+      negative_prompt = self.controller.get_negative_prompt()
 
-        print("Start :", phase.start_image)
+      duration = self.controller.get_duration()
 
-        print("End   :", phase.end_image)
+      steps = self.controller.get_steps()
 
-        print("Output:", output_video)
+      resolution = self.controller.get_resolution()
 
-        print("-----------------------------")
+      segment_folder = str(output_video.parent)
 
-        #
-        # TODO
-        #
-        # Replace this section with the actual
-        # FramePack rendering call.
-        #
+      output_name = output_video.name
 
-    # --------------------------------------------------------
-    # Progress
-    # --------------------------------------------------------
+      print("--------------------------------")
+
+      print("Submitting render to FramePack...")
+
+      print("--------------------------------")
+
+      result = self.adapter.render_phase(
+
+        start_image=start_image,
+
+        end_image=end_image,
+
+        prompt=positive_prompt,
+
+        negative_prompt=negative_prompt,
+
+        duration=duration,
+
+        resolution=resolution,
+
+        steps=steps,
+
+        segment_folder=segment_folder,
+
+        output_name=output_name
+
+      )
+
+      print("--------------------------------")
+
+      print("Render Finished")
+
+      print(result)
+
+      print("--------------------------------")
+
+      return result
+
+
+
+
+
+
+
 
     def _progress(
 
