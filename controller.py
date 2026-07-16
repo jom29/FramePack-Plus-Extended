@@ -116,11 +116,31 @@ class Controller:
 
     def select_image(self, image_path):
 
-        self.selected_image = image_path
+      self.selected_image = Path(image_path).name
 
     def get_selected_image(self):
 
         return self.selected_image
+
+    
+
+
+
+
+    # --------------------------------------------------------
+    # Image Path Resolver
+    # --------------------------------------------------------
+
+    def resolve_image(self, filename):
+
+     if not filename:
+        return None
+
+     return str(self.image_folder / filename)
+
+
+
+
 
     # --------------------------------------------------------
     # Phase Navigation
@@ -159,11 +179,20 @@ class Controller:
 
     def get_start_image(self):
 
-        return self.get_current_phase().start_image
+     filename = self.get_current_phase().start_image
+
+     return self.resolve_image(filename)
+
 
     def get_end_image(self):
 
-        return self.get_current_phase().end_image
+     filename = self.get_current_phase().end_image
+
+     return self.resolve_image(filename)
+
+
+
+
 
     # --------------------------------------------------------
     # Phase Management

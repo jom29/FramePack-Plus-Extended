@@ -352,8 +352,8 @@ AI Animation Pipeline
 
      phase = self.controller.get_current_phase()
 
-     start_image = phase.start_image if phase.start_image else None
-     end_image = phase.end_image if phase.end_image else None
+     start_image = self.controller.get_start_image()
+     end_image = self.controller.get_end_image()
 
      start_name = (
         Path(phase.start_image).name
