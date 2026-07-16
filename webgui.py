@@ -1,5 +1,7 @@
 import gradio as gr
 
+from pathlib import Path
+
 from controller import Controller
 
 
@@ -61,7 +63,13 @@ class FramePackWebGUI:
 
     def build_phase_header(self):
 
-      self.phase_title = gr.Markdown(f"""## Currently Editing### {self.controller.get_current_phase().name}""")
+       self.phase_title = gr.Markdown(
+         f"""
+       ## Currently Editing
+
+       ### {self.controller.get_current_phase().name}
+"""
+    )
 
 
     def build_phase_navigation(self):
@@ -148,23 +156,39 @@ AI Animation Pipeline
 
     def build_image_library(self):
 
-        gr.Markdown("## 📁 Image Library")
+     gr.Markdown("## 📁 Image Library")
 
-        gr.Markdown("""Images are automatically loaded from`projects/demo/images`""")
+     gr.Markdown(
+        "Images are automatically loaded from `projects/demo/images`"
+     )
 
-        with gr.Row():
+     # Toolbar
+     with gr.Row():
 
-            self.refresh_button = gr.Button(
-                "🔄 Refresh Library",
-                variant="secondary",
-                scale=0
-            )
+        self.refresh_button = gr.Button(
+            "🔄 Refresh Library",
+            variant="secondary",
+            scale=0
+        )
 
-            self.search_box = gr.Textbox(placeholder="Search image...",show_label=False,scale=4)
+        self.search_box = gr.Textbox(
+            placeholder="Search image...",
+            show_label=False,
+            scale=4
+        )
 
-        self.gallery = gr.Gallery(value=self.controller.get_images(),columns=6,rows=2,height=300,object_fit="contain",allow_preview=True,show_label=False)
-
-    # --------------------------------------------------
+     # Gallery occupies the full width below the toolbar
+     self.gallery = gr.Gallery(
+        value=self.controller.get_images(),
+        columns=6,
+        rows=None,
+        height=500,
+        object_fit="contain",
+        allow_preview=True,
+        show_label=False,
+        elem_id="image_gallery"
+    )
+            
     # Controls
     # --------------------------------------------------
 
@@ -194,7 +218,7 @@ AI Animation Pipeline
 
         inputs=self.phase_selector,
 
-        outputs=self.phase_title
+        outputs=[self.phase_title,self.start_preview,self.start_filename,self.end_preview,self.end_filename]
 
     )
 
@@ -202,14 +226,21 @@ AI Animation Pipeline
 
         fn=self.on_add_phase,
 
-        outputs=[
+       outputs=[
 
-            self.phase_selector,
+       self.phase_selector,
 
-            self.phase_title
+       self.phase_title,
 
-        ]
+       self.start_preview,
 
+       self.start_filename,
+
+       self.end_preview,
+
+       self.end_filename
+
+       ]
     )
 
       self.delete_phase_button.click(
@@ -223,25 +254,162 @@ AI Animation Pipeline
             self.phase_title
 
         ]
+    )
+      
+
+      self.set_start_button.click(
+
+         fn=self.on_set_start,
+
+         outputs=[
+
+         self.start_preview,
+
+         self.start_filename
+
+        ]
+
+    )
+
+
+      
+      self.gallery.select(
+
+         fn=self.on_gallery_selected,
+
+         outputs=[]
+
+    )
+      
+
+
+      self.set_end_button.click(
+
+         fn=self.on_set_end,
+
+         outputs=[
+
+         self.end_preview,
+
+         self.end_filename
+
+    ]
+
+   )
+
+
+
+
+
+    def on_set_start(self):
+
+        self.controller.set_start_image()
+
+        image = self.controller.get_start_image()
+
+        if image:
+
+           filename = Path(image).name
+
+        else:
+
+          filename = "None"
+
+        return (
+
+        image,
+
+        filename
 
     )
 
 
 
+    def on_set_end(self):
+
+       self.controller.set_end_image()
+
+       image = self.controller.get_end_image()
+
+       if image:
+
+        filename = Path(image).name
+
+       else:
+
+        filename = "None"
+
+       return (
+
+        image,
+
+        filename
+
+    )
+
+
+    def refresh_phase_editor(self):
+
+     phase = self.controller.get_current_phase()
+
+     start_image = phase.start_image if phase.start_image else None
+     end_image = phase.end_image if phase.end_image else None
+
+     start_name = (
+        Path(phase.start_image).name
+        if phase.start_image
+        else "None"
+    )
+
+     end_name = (
+        Path(phase.end_image).name
+        if phase.end_image
+        else "None"
+    )
+
+     title = f"""
+       ## Currently Editing
+
+      ### {phase.name}
+      """
+
+     return (
+
+        title,
+        start_image,
+        start_name,
+
+        end_image,
+        end_name
+
+    )
+
+
+    def on_gallery_selected(self, evt: gr.SelectData):
+
+      image_path = evt.value["image"]["path"]
+
+      self.controller.select_image(image_path)
+
+      print(image_path)
+
+
+    
+    
+      
+       
+
+
 
     def on_phase_changed(self, phase_name):
 
-        names = self.controller.get_phase_names()
+      names = self.controller.get_phase_names()
 
-        index = names.index(phase_name)
+      index = names.index(phase_name)
 
-        self.controller.select_phase(index)
+      self.controller.select_phase(index)
 
-        return f"""
-    ## Currently Editing
-
-    ### {self.controller.get_current_phase().name}
-    """
+      return self.refresh_phase_editor()
 
 
 
@@ -255,21 +423,19 @@ AI Animation Pipeline
 
         current = self.controller.get_current_phase().name
 
+        editor = self.refresh_phase_editor()
+
         return (
 
-        gr.update(
+         gr.update(
 
-            choices=names,
+        choices=names,
 
-            value=current
+        value=current
 
-        ),
+     ),
 
-        f"""
-## Currently Editing
-
-### {current}
-"""
+      *editor
 
     )
 
@@ -277,29 +443,26 @@ AI Animation Pipeline
 
 
 
+
+
     def on_delete_phase(self):
 
-       self.controller.delete_current_phase()
+     self.controller.delete_current_phase()
 
-       names = self.controller.get_phase_names()
+     names = self.controller.get_phase_names()
 
-       current = self.controller.get_current_phase().name
+     current = self.controller.get_current_phase().name
 
-       return (
+     editor = self.refresh_phase_editor()
+
+     return (
 
         gr.update(
-
             choices=names,
-
             value=current
-
         ),
 
-        f"""
-## Currently Editing
-
-### {current}
-"""
+        *editor
 
     )
 

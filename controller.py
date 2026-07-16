@@ -13,13 +13,17 @@ class Phase:
 
         self.name = f"Phase {index}"
 
+        # ----------------------------------------------------
         # Keyframes
+        # ----------------------------------------------------
 
         self.start_image = ""
 
         self.end_image = ""
 
+        # ----------------------------------------------------
         # Future Render Settings
+        # ----------------------------------------------------
 
         self.positive_prompt = ""
 
@@ -49,6 +53,12 @@ class Controller:
         )
 
         # ----------------------------------------------------
+        # Gallery Selection
+        # ----------------------------------------------------
+
+        self.selected_image = ""
+
+        # ----------------------------------------------------
         # Phase System
         # ----------------------------------------------------
 
@@ -67,9 +77,7 @@ class Controller:
         self.phase_list.clear()
 
         self.phase_list.append(
-
             Phase(1)
-
         )
 
         self.current_phase = 0
@@ -81,17 +89,11 @@ class Controller:
     def get_images(self):
 
         supported = (
-
             ".png",
-
             ".jpg",
-
             ".jpeg",
-
             ".webp",
-
             ".bmp"
-
         )
 
         images = []
@@ -109,25 +111,32 @@ class Controller:
         return images
 
     # --------------------------------------------------------
+    # Gallery Selection
+    # --------------------------------------------------------
+
+    def select_image(self, image_path):
+
+        self.selected_image = image_path
+
+    def get_selected_image(self):
+
+        return self.selected_image
+
+    # --------------------------------------------------------
     # Phase Navigation
     # --------------------------------------------------------
 
     def get_phase_names(self):
 
         return [
-
             phase.name
-
             for phase in self.phase_list
-
         ]
 
     def get_current_phase(self):
 
         return self.phase_list[
-
             self.current_phase
-
         ]
 
     def select_phase(self, index):
@@ -135,6 +144,26 @@ class Controller:
         if 0 <= index < len(self.phase_list):
 
             self.current_phase = index
+
+    # --------------------------------------------------------
+    # Start / End Keyframes
+    # --------------------------------------------------------
+
+    def set_start_image(self):
+
+        self.get_current_phase().start_image = self.selected_image
+
+    def set_end_image(self):
+
+        self.get_current_phase().end_image = self.selected_image
+
+    def get_start_image(self):
+
+        return self.get_current_phase().start_image
+
+    def get_end_image(self):
+
+        return self.get_current_phase().end_image
 
     # --------------------------------------------------------
     # Phase Management
@@ -145,25 +174,19 @@ class Controller:
         new_index = len(self.phase_list) + 1
 
         self.phase_list.append(
-
             Phase(new_index)
-
         )
 
         self.current_phase = len(self.phase_list) - 1
 
     def delete_current_phase(self):
 
-        # Never delete the last phase
-
         if len(self.phase_list) <= 1:
 
             return
 
         self.phase_list.pop(
-
             self.current_phase
-
         )
 
         # Renumber phases
@@ -180,8 +203,36 @@ class Controller:
 
             phase.name = f"Phase {index}"
 
-        # Clamp selection
+        # Clamp current selection
 
         if self.current_phase >= len(self.phase_list):
 
             self.current_phase = len(self.phase_list) - 1
+
+    # --------------------------------------------------------
+    # Convenience
+    # --------------------------------------------------------
+
+    def get_phase_summary(self):
+
+        phase = self.get_current_phase()
+
+        return {
+
+            "name": phase.name,
+
+            "start_image": phase.start_image,
+
+            "end_image": phase.end_image,
+
+            "positive_prompt": phase.positive_prompt,
+
+            "negative_prompt": phase.negative_prompt,
+
+            "duration": phase.duration,
+
+            "steps": phase.steps,
+
+            "resolution": phase.resolution
+
+        }
