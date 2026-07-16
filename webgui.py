@@ -3,6 +3,7 @@ import gradio as gr
 from pathlib import Path
 
 from controller import Controller
+from render_engine import RenderEngine
 
 
 class FramePackWebGUI:
@@ -10,6 +11,13 @@ class FramePackWebGUI:
     def __init__(self):
 
         self.controller = Controller()
+
+        self.render_engine = RenderEngine(
+
+         self.controller
+
+        )
+
 
         self.build_interface()
 
@@ -211,7 +219,22 @@ class FramePackWebGUI:
 
         interactive=False
 
-     )
+       )
+        
+
+
+        self.generate_button.click(
+
+         fn=self.on_generate,
+
+         outputs=[
+
+          self.progress,
+
+          self.status
+
+         ]
+        )
 
 
     # --------------------------------------------------
@@ -586,6 +609,43 @@ AI Animation Pipeline
 
 
 
+
+   # --------------------------------------------------
+   # Generate Batch
+   # --------------------------------------------------
+
+    def on_generate(self):
+
+     self.render_engine.render_project(
+
+        progress_callback=self.update_progress
+
+     )
+
+     return (
+
+        100,
+
+        "Finished"
+
+    )
+
+
+    def update_progress(
+
+      self,
+
+      percent,
+
+      message
+
+    ):
+
+      print(
+
+        f"{percent}% - {message}"
+
+    )
 
 
 
