@@ -93,6 +93,115 @@ class FramePackWebGUI:
         self.delete_phase_button = gr.Button("🗑 Delete Phase",variant="secondary")
 
 
+        gr.Markdown("---")
+
+        gr.Markdown("## ⚙ Global Render Settings")
+
+        self.positive_prompt = gr.Textbox(
+
+            label="Positive Prompt",
+
+            lines=4,
+
+            value=self.controller.get_positive_prompt()
+
+        )
+
+        self.negative_prompt = gr.Textbox(
+
+            label="Negative Prompt",
+
+            lines=4,
+
+            value=self.controller.get_negative_prompt()
+
+        )
+
+        with gr.Row():
+
+            self.duration = gr.Number(
+
+                label="Duration",
+
+                value=self.controller.get_duration(),
+
+                precision=1
+
+            )
+
+            self.fps = gr.Number(
+
+                label="FPS",
+
+                value=self.controller.get_fps(),
+
+                precision=0
+
+            )
+
+        with gr.Row():
+
+            self.steps = gr.Number(
+
+                label="Steps",
+
+                value=self.controller.get_steps(),
+
+                precision=0
+
+            )
+
+            self.resolution = gr.Dropdown(
+
+                label="Resolution",
+
+                choices=[
+
+                    480,
+
+                    720,
+
+                    1080
+
+                ],
+
+                value=self.controller.get_resolution()
+
+            )
+
+        gr.Markdown("---")
+
+        self.generate_button = gr.Button(
+
+            "🚀 Generate Batch",
+
+            variant="primary"
+
+        )
+
+        self.progress = gr.Slider(
+
+            minimum=0,
+
+            maximum=100,
+
+            value=0,
+
+            label="Progress",
+
+            interactive=False
+
+        )
+
+        self.status = gr.Textbox(
+
+            label="Status",
+
+            value="Idle",
+
+            interactive=False
+
+        )
 
 
 

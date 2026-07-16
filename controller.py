@@ -22,7 +22,7 @@ class Phase:
         self.end_image = ""
 
         # ----------------------------------------------------
-        # Future Render Settings
+        # Reserved for future per-phase settings
         # ----------------------------------------------------
 
         self.positive_prompt = ""
@@ -65,6 +65,22 @@ class Controller:
         self.phase_list = []
 
         self.current_phase = 0
+
+        # ----------------------------------------------------
+        # Global Render Settings
+        # ----------------------------------------------------
+
+        self.positive_prompt = ""
+
+        self.negative_prompt = ""
+
+        self.duration = 5.0
+
+        self.steps = 25
+
+        self.resolution = 720
+
+        self.fps = 30
 
         self.create_default_project()
 
@@ -238,6 +254,74 @@ class Controller:
 
             self.current_phase = len(self.phase_list) - 1
 
+
+
+
+    # --------------------------------------------------------
+    # Global Render Settings
+    # --------------------------------------------------------
+
+    def set_positive_prompt(self, value):
+
+        self.positive_prompt = value
+
+
+    def get_positive_prompt(self):
+
+        return self.positive_prompt
+
+
+    def set_negative_prompt(self, value):
+
+        self.negative_prompt = value
+
+
+    def get_negative_prompt(self):
+
+        return self.negative_prompt
+
+
+    def set_duration(self, value):
+
+        self.duration = float(value)
+
+
+    def get_duration(self):
+
+        return self.duration
+
+
+    def set_steps(self, value):
+
+        self.steps = int(value)
+
+
+    def get_steps(self):
+
+        return self.steps
+
+
+    def set_resolution(self, value):
+
+        self.resolution = int(value)
+
+
+    def get_resolution(self):
+
+        return self.resolution
+
+
+    def set_fps(self, value):
+
+        self.fps = int(value)
+
+
+    def get_fps(self):
+
+        return self.fps
+
+
+
     # --------------------------------------------------------
     # Convenience
     # --------------------------------------------------------
@@ -254,14 +338,15 @@ class Controller:
 
             "end_image": phase.end_image,
 
-            "positive_prompt": phase.positive_prompt,
+            "positive_prompt": self.positive_prompt,
 
-            "negative_prompt": phase.negative_prompt,
+            "negative_prompt": self.negative_prompt,
 
-            "duration": phase.duration,
+            "duration": self.duration,
 
-            "steps": phase.steps,
+            "steps": self.steps,
 
-            "resolution": phase.resolution
+            "resolution": self.resolution,
 
+            "fps": self.fps
         }
