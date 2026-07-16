@@ -34,11 +34,26 @@ def main():
 
         folder = Path(framepack_folder)
 
+        print("--------------------------------")
+        print("Input   :", repr(framepack_folder))
+        print("Resolved:", folder.resolve())
+        print("Exists? :", folder.exists())
+        print("--------------------------------")
+
+
         if not folder.exists():
 
             print("Folder does not exist.")
-            framepack_folder = input("> ").strip()
-            continue
+            framepack_folder = input(
+            "FramePack Plus Folder\n> "
+             ).strip()
+
+          # Automatically convert relative paths to absolute
+        if not framepack_folder.startswith("/"):
+                framepack_folder = "/" + framepack_folder
+                continue
+
+
 
         if not (folder / "requirements.txt").exists():
 
