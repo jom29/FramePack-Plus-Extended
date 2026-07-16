@@ -80,8 +80,6 @@ class Controller:
 
         self.resolution = 720
 
-        self.fps = 30
-
         self.create_default_project()
 
     # --------------------------------------------------------
@@ -311,14 +309,7 @@ class Controller:
         return self.resolution
 
 
-    def set_fps(self, value):
-
-        self.fps = int(value)
-
-
-    def get_fps(self):
-
-        return self.fps
+ 
 
 
 
@@ -348,5 +339,4 @@ class Controller:
 
             "resolution": self.resolution,
 
-            "fps": self.fps
         }

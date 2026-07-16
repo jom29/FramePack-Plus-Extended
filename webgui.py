@@ -119,25 +119,19 @@ class FramePackWebGUI:
 
         with gr.Row():
 
-            self.duration = gr.Number(
+          with gr.Row():
 
-                label="Duration",
+           self.duration = gr.Number(
 
-                value=self.controller.get_duration(),
+           label="Duration (Seconds)",
 
-                precision=1
+           value=self.controller.get_duration(),
 
-            )
+           precision=1
+        )
 
-            self.fps = gr.Number(
 
-                label="FPS",
 
-                value=self.controller.get_fps(),
-
-                precision=0
-
-            )
 
         with gr.Row():
 
@@ -203,6 +197,21 @@ class FramePackWebGUI:
 
         )
 
+
+
+        gr.Markdown("---")
+
+        gr.Markdown("## 🎞 Output")
+
+        self.stitch_button = gr.Button(
+
+        "🎞 Merge Clips",
+
+         variant="secondary",
+
+        interactive=False
+
+     )
 
 
     # --------------------------------------------------
