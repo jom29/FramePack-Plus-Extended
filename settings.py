@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 FRAMEPACK_RUNTIME = r"E:\AI\FramePack_Official\framepack_cu126_torch26"
 
 FRAMEPACK_WEBUI = r"E:\AI\FramePack Plus\webui"
@@ -18,3 +21,61 @@ DEFAULT_NEGATIVE_PROMPT = (
     "Teleportation, jump frames, flickering, identity drift, "
     "body distortion, camera jump, scene change."
 )
+
+
+
+
+
+# ------------------------------------------------------------
+# Configuration File
+# ------------------------------------------------------------
+
+CONFIG_FILE = Path("config.json")
+
+
+def load_paths():
+
+    if CONFIG_FILE.exists():
+
+        with open(CONFIG_FILE, "r", encoding="utf8") as f:
+
+            data = json.load(f)
+
+        runtime = data.get(
+            "runtime_root",
+            FRAMEPACK_RUNTIME
+        )
+
+        webui = data.get(
+            "webui_root",
+            FRAMEPACK_WEBUI
+        )
+
+    else:
+
+        runtime = FRAMEPACK_RUNTIME
+
+        webui = FRAMEPACK_WEBUI
+
+    return runtime, webui
+
+
+def save_paths(runtime, webui):
+
+    with open(CONFIG_FILE, "w", encoding="utf8") as f:
+
+        json.dump(
+
+            {
+
+                "runtime_root": runtime,
+
+                "webui_root": webui
+
+            },
+
+            f,
+
+            indent=4
+
+        )

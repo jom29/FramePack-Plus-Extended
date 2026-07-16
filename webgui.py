@@ -4,7 +4,7 @@ from pathlib import Path
 
 from controller import Controller
 from render_engine import RenderEngine
-
+from settings import load_paths, save_paths
 
 class FramePackWebGUI:
 
@@ -659,6 +659,30 @@ AI Animation Pipeline
 
 
 if __name__ == "__main__":
+
+    runtime_root, webui_root = load_paths()
+
+    print()
+    print("========================================")
+    print(" FramePack Plus Extended Setup")
+    print("========================================")
+    print()
+
+    runtime = input(
+        f"FramePack Runtime\n[{runtime_root}]\n> "
+    ).strip()
+
+    if runtime:
+        runtime_root = runtime
+
+    webui = input(
+        f"\nFramePack Plus WebUI\n[{webui_root}]\n> "
+    ).strip()
+
+    if webui:
+        webui_root = webui
+
+    save_paths(runtime_root, webui_root)
 
     gui = FramePackWebGUI()
 

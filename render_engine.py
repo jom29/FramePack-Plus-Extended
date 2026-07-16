@@ -2,6 +2,9 @@ from pathlib import Path
 from typing import Callable
 from adapter import FramePackAdapter
 
+from settings import load_paths
+
+
 class RenderEngine:
 
     def __init__(self, controller):
@@ -27,15 +30,25 @@ class RenderEngine:
 
         print("Initializing FramePack Adapter...")
 
-        runtime_root = Path(
-          r"E:\AI\FramePack_Official\framepack_cu126_torch26"
-        )
 
-        webui_root = Path(
-         r"E:\AI\FramePack Plus\webui"
-         )
 
+
+
+        from settings import load_paths
+
+
+        runtime_root, webui_root = load_paths()
+
+        runtime_root = Path(runtime_root)
+
+        webui_root = Path(webui_root)
         self.adapter = FramePackAdapter(
+
+
+
+
+
+
 
         runtime_root=runtime_root,
 
