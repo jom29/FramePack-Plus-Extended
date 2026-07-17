@@ -1,0 +1,41 @@
+{
+    "project_version": 1,
+    "project_name": "demo",
+    "settings_mode": "local",
+    "current_phase": 1,
+    "global_settings": {
+        "positive_prompt": "Consistent body motion toward end keyframe",
+        "negative_prompt": "teleport",
+        "duration": 1.0,
+        "steps": 1,
+        "resolution": 720
+    },
+    "phases": [
+        {
+            "id": 1,
+            "name": "Phase 1",
+            "start_image": "",
+            "end_image": "",
+            "local_settings": {
+                "positive_prompt": "",
+                "negative_prompt": "",
+                "duration": 1.0,
+                "steps": 1,
+                "resolution": 720
+            }
+        },
+        {
+            "id": 2,
+            "name": "Phase 2",
+            "start_image": "",
+            "end_image": "",
+            "local_settings": {
+                "positive_prompt": "",
+                "negative_prompt": "",
+                "duration": 2.0,
+                "steps": 2,
+                "resolution": 720
+            }
+        }
+    ]
+}

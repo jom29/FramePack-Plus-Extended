@@ -1,5 +1,5 @@
 from pathlib import Path
-
+from project_serializer import ProjectSerializer
 
 # ------------------------------------------------------------
 # Phase
@@ -66,19 +66,16 @@ class Controller:
 
         self.current_phase = 0
 
+
+        # ----------------------------------------------------
+        # Settings Mode
+        # ----------------------------------------------------
+
+        self.settings_mode = "global"
+
         # ----------------------------------------------------
         # Global Render Settings
         # ----------------------------------------------------
-
-        self.positive_prompt = ""
-
-        self.negative_prompt = ""
-
-        self.duration = 1
-
-        self.steps = 10
-
-        self.resolution = 720
 
         self.create_default_project()
 
@@ -96,9 +93,16 @@ class Controller:
 
         self.global_resolution = 720
 
+
+        # ----------------------------------------------------
+        # Project Serializer
+        # ----------------------------------------------------
+
+        self.serializer = ProjectSerializer()
+
         self.segment_folder = Path(
         "projects/demo/segments"
-    )
+        )
 
     # --------------------------------------------------------
     # Project Initialization
@@ -279,63 +283,42 @@ class Controller:
 
     def set_positive_prompt(self, value):
 
-        self.positive_prompt = value
+        self.global_positive_prompt = value
 
 
     def get_positive_prompt(self):
 
-        return self.positive_prompt
+     return self.global_positive_prompt
 
 
     def set_negative_prompt(self, value):
 
-        self.negative_prompt = value
+        self.global_negative_prompt = value
 
-
-    def get_negative_prompt(self):
-
-        return self.negative_prompt
 
 
     def set_duration(self, value):
 
-        self.duration = float(value)
+        self.global_duration = float(value)
 
 
-    def get_duration(self):
-
-        return self.duration
 
 
     def set_steps(self, value):
 
-        self.steps = int(value)
+        self.global_steps = int(value)
 
-
-    def get_steps(self):
-
-        return self.steps
 
 
     def set_resolution(self, value):
 
-        self.resolution = int(value)
-
-
-    def get_resolution(self):
-
-        return self.resolution
+        self.global_resolution = int(value)
 
 
  
     # --------------------------------------------------------
     # Global Render Settings
     # --------------------------------------------------------
-
-    def get_positive_prompt(self):
-
-     return self.global_positive_prompt
-
 
     def get_negative_prompt(self):
 
@@ -360,6 +343,258 @@ class Controller:
     def get_segment_folder(self):
 
      return self.segment_folder
+
+
+    # --------------------------------------------------------
+    # Project
+    # --------------------------------------------------------
+
+    def get_serializer(self):
+
+     return self.serializer
+
+
+    # --------------------------------------------------------
+    # Project
+    # --------------------------------------------------------
+
+    def save_project(self):
+
+     self.serializer.save(self)
+
+     print()
+
+     print("--------------------------------")
+
+     print("Project Saved")
+
+     print(self.serializer.get_project_path())
+
+     print("--------------------------------")
+
+
+
+
+     # --------------------------------------------------------
+     # Project
+     # --------------------------------------------------------
+
+    def load_project(self):
+
+     loaded = self.serializer.load(self)
+
+     if loaded:
+
+        print()
+
+        print("--------------------------------")
+
+        print("Project Loaded")
+
+        print(self.serializer.get_project_path())
+
+        print("--------------------------------")
+
+     else:
+
+        print()
+
+        print("--------------------------------")
+
+        print("No Project Found")
+
+        print("--------------------------------")
+
+
+
+
+   # --------------------------------------------------------
+   # Project Startup
+   # --------------------------------------------------------
+
+    def initialize_project(self):
+
+     if self.serializer.exists():
+
+        print()
+
+        print("--------------------------------")
+
+        print("Existing project found")
+
+        print("--------------------------------")
+
+        self.load_project()
+
+     else:
+
+        print()
+
+        print("--------------------------------")
+
+        print("Creating new project")
+
+        print("--------------------------------")
+
+        self.create_default_project()
+
+        self.save_project()
+
+
+
+    # --------------------------------------------------------
+    # Settings Mode
+    # --------------------------------------------------------
+
+    def set_settings_mode(self, mode):
+
+      self.settings_mode = mode
+
+      print()
+
+      print("--------------------------------")
+
+      print("Settings Mode :", self.settings_mode)
+
+      print()
+
+      print("Inspector Values")
+
+      print(self.load_inspector())
+
+      print("--------------------------------")
+
+
+    def get_settings_mode(self):
+
+     return self.settings_mode
+
+
+
+  # --------------------------------------------------------
+  # Inspector
+  # --------------------------------------------------------
+
+    def load_inspector(self):
+
+     if self.settings_mode == "global":
+
+        return (
+
+
+
+            self.global_positive_prompt,
+
+            self.global_negative_prompt,
+
+            self.global_duration,
+
+            self.global_steps,
+
+            self.global_resolution
+
+        )
+
+     phase = self.get_current_phase()
+
+     return (
+
+        phase.positive_prompt,
+
+        phase.negative_prompt,
+
+        phase.duration,
+
+        phase.steps,
+
+        phase.resolution
+
+    )
+
+
+
+    # --------------------------------------------------------
+    # Inspector 
+    # --------------------------------------------------------
+
+    def commit_inspector(
+
+      self,
+
+     positive,
+
+     negative,
+
+     duration,
+
+     steps,
+
+     resolution
+
+    ):
+
+     if self.settings_mode == "global":
+
+        self.global_positive_prompt = positive
+
+        self.global_negative_prompt = negative
+
+        self.global_duration = float(duration)
+
+        self.global_steps = int(steps)
+
+        self.global_resolution = int(resolution)
+
+     else:
+
+        phase = self.get_current_phase()
+
+        phase.positive_prompt = positive
+
+        phase.negative_prompt = negative
+
+        phase.duration = float(duration)
+
+        phase.steps = int(steps)
+
+        phase.resolution = int(resolution)
+
+     self.save_project()
+
+    print()
+
+    print("--------------------------------")
+
+    print("Project Saved")
+
+    print("--------------------------------")
+
+
+
+
+
+
+    # --------------------------------------------------------
+    # Settings Mode
+    # --------------------------------------------------------
+
+    def set_settings_mode(self, mode):
+
+       self.settings_mode = mode
+
+       print()
+
+       print("--------------------------------")
+
+       print("Inspector Values")
+
+       print(self.load_inspector())
+
+       print("--------------------------------")
+
+    def get_settings_mode(self):
+
+       return self.settings_mode
 
 
     # --------------------------------------------------------

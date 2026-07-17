@@ -25,6 +25,38 @@ class FramePackWebGUI:
 
         self.build_interface()
 
+
+    def on_save_settings(
+
+      self,
+
+      positive,
+
+      negative,
+
+      duration,
+
+      steps,
+
+      resolution
+
+     ):
+
+      self.controller.commit_inspector(
+
+        positive,
+
+        negative,
+
+        duration,
+
+        steps,
+
+        resolution
+
+    )
+
+
     # --------------------------------------------------
     # Build Interface
     # --------------------------------------------------
@@ -88,6 +120,15 @@ class FramePackWebGUI:
 
         gr.Markdown("## 🎬 Phases")
 
+        self.save_settings_button = gr.Button(
+
+        "💾 Save Settings",
+
+        variant="primary"
+
+       )
+     
+
         self.phase_selector = gr.Radio(
 
            choices=self.controller.get_phase_names(),
@@ -107,7 +148,28 @@ class FramePackWebGUI:
 
         gr.Markdown("---")
 
-        gr.Markdown("## ⚙ Global Render Settings")
+        gr.Markdown("## ⚙ Render Settings")
+
+        
+        self.settings_mode = gr.Radio(
+
+          choices=[
+
+           "Global",
+
+           "Local"
+
+        ],
+
+           value="Global",
+
+           label="Settings Mode"
+
+        )
+
+
+
+
 
         self.positive_prompt = gr.Textbox(
 
@@ -382,30 +444,67 @@ AI Animation Pipeline
 
         inputs=self.phase_selector,
 
-        outputs=[self.phase_title,self.start_preview,self.start_filename,self.end_preview,self.end_filename]
+        outputs=[
 
-    )
+        self.phase_title,
+
+        self.start_preview,
+
+        self.start_filename,
+
+        self.end_preview,
+
+        self.end_filename,
+
+        self.positive_prompt,
+
+        self.negative_prompt,
+
+        self.duration,
+
+        self.steps,
+
+        self.resolution
+
+       ]
+
+      )
 
       self.add_phase_button.click(
 
         fn=self.on_add_phase,
 
-       outputs=[
+     outputs=[
 
-       self.phase_selector,
+      self.phase_selector,
 
-       self.phase_title,
+      self.phase_title,
 
-       self.start_preview,
+      self.start_preview,
 
-       self.start_filename,
+      self.start_filename,
 
-       self.end_preview,
+      self.end_preview,
 
-       self.end_filename
+      self.end_filename,
 
-       ]
-    )
+      self.positive_prompt,
+
+      self.negative_prompt,
+
+      self.duration,
+
+      self.steps,
+
+      self.resolution
+
+        ]
+
+
+       )
+      
+
+
 
       self.delete_phase_button.click(
 
@@ -413,12 +512,29 @@ AI Animation Pipeline
 
         outputs=[
 
-            self.phase_selector,
+        self.phase_selector,
 
-            self.phase_title
+        self.phase_title,
 
-        ]
-    )
+        self.start_preview,
+
+        self.start_filename,
+
+        self.end_preview,
+
+        self.end_filename,
+
+        self.positive_prompt,
+
+        self.negative_prompt,
+
+        self.duration,
+
+        self.steps,
+
+        self.resolution
+      ]
+     )
       
 
       self.set_start_button.click(
@@ -433,7 +549,7 @@ AI Animation Pipeline
 
         ]
 
-    )
+     )
 
 
       
@@ -443,7 +559,7 @@ AI Animation Pipeline
 
          outputs=[]
 
-    )
+     )
       
 
 
@@ -469,6 +585,54 @@ AI Animation Pipeline
       fn=self.on_merge
 
       )
+
+
+      self.settings_mode.change(
+
+       fn=self.on_settings_mode_changed,
+
+      inputs=self.settings_mode,
+
+      outputs=[
+
+        self.positive_prompt,
+
+        self.negative_prompt,
+
+        self.duration,
+
+        self.steps,
+
+        self.resolution
+        ]
+       )
+      
+      self.save_settings_button.click(
+
+      fn=self.on_save_settings,
+
+      inputs=[
+
+        self.positive_prompt,
+
+        self.negative_prompt,
+
+        self.duration,
+
+        self.steps,
+
+        self.resolution
+
+      ],
+
+      outputs=[]
+
+      )
+
+
+
+
+
 
 
 
@@ -545,16 +709,31 @@ AI Animation Pipeline
       ### {phase.name}
       """
 
+     values = self.controller.load_inspector()
+
      return (
 
-        title,
-        start_image,
-        start_name,
+       title,
 
-        end_image,
-        end_name
+       start_image,
 
-    )
+       start_name,
+
+       end_image,
+
+       end_name,
+
+       values[0],
+
+       values[1],
+
+       values[2],
+
+       values[3],
+
+       values[4]
+
+   )
 
 
     def on_gallery_selected(self, evt: gr.SelectData):
@@ -704,6 +883,51 @@ AI Animation Pipeline
         "Finished"
 
     )
+
+
+
+
+    def on_settings_mode_changed(
+
+      self,
+
+      mode
+
+     ):
+
+      self.controller.set_settings_mode(
+
+        mode.lower()
+
+     )
+
+      values = self.controller.load_inspector()
+
+      return (
+
+            values[0],
+
+            values[1],
+
+            values[2],
+
+            values[3],
+
+            values[4]
+
+           )
+
+      print("--------------------------------")
+
+      print(
+
+        "Settings Mode :",
+
+        self.controller.get_settings_mode()
+
+     )
+
+      print("--------------------------------")
 
 
 
