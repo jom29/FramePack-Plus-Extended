@@ -207,11 +207,19 @@ class Controller:
 
     def set_start_image(self):
 
-        self.get_current_phase().start_image = self.selected_image
+     self.get_current_phase().start_image = self.selected_image
+
+     self.save_project()
+
+
 
     def set_end_image(self):
 
-        self.get_current_phase().end_image = self.selected_image
+     self.get_current_phase().end_image = self.selected_image
+
+     self.save_project()
+
+
 
     def get_start_image(self):
 
@@ -595,6 +603,138 @@ class Controller:
     def get_settings_mode(self):
 
        return self.settings_mode
+
+
+
+    # --------------------------------------------------------
+    # Render
+    # --------------------------------------------------------
+
+    # --------------------------------------------------------
+    # Render
+    # --------------------------------------------------------
+
+    def get_render_settings(self, phase):
+
+     if self.settings_mode == "global":
+
+        return {
+
+            "start_image": phase.start_image,
+
+            "end_image": phase.end_image,
+
+            "positive_prompt": self.global_positive_prompt,
+
+            "negative_prompt": self.global_negative_prompt,
+
+            "duration": self.global_duration,
+
+            "steps": self.global_steps,
+
+            "resolution": self.global_resolution
+
+        }
+
+     return {
+
+        "start_image": phase.start_image,
+
+        "end_image": phase.end_image,
+
+        "positive_prompt": phase.positive_prompt,
+
+        "negative_prompt": phase.negative_prompt,
+
+        "duration": phase.duration,
+
+        "steps": phase.steps,
+
+        "resolution": phase.resolution
+
+    }
+
+
+
+
+    # --------------------------------------------------------
+    # Render
+    # --------------------------------------------------------
+
+    def get_render_queue(self):
+
+      queue = []
+
+      for phase in self.phase_list:
+
+        queue.append(
+
+            {
+
+               "phase": phase,
+
+               "settings": self.get_render_settings(
+
+              phase
+
+                )
+
+            }
+
+           )
+
+      return queue
+
+
+
+
+    # --------------------------------------------------------
+    # Render
+    # --------------------------------------------------------
+
+    def print_render_queue(self):
+
+      queue = self.get_render_queue()
+
+      print()
+
+      print("========================================")
+      print(" Render Queue")
+      print("========================================")
+
+      for index, item in enumerate(queue, start=1):
+
+        settings = item["settings"]
+
+        print()
+
+        print(f"Phase {index}")
+
+        print("----------------------------------------")
+
+        print("Positive Prompt :",
+              settings["positive_prompt"])
+
+        print("Negative Prompt :",
+              settings["negative_prompt"])
+
+        print("Duration        :",
+              settings["duration"])
+
+        print("Steps           :",
+              settings["steps"])
+
+        print("Resolution      :",
+              settings["resolution"])
+
+      print()
+
+      print("========================================")
+
+
+
+
+
 
 
     # --------------------------------------------------------

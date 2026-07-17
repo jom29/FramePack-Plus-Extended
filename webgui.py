@@ -870,6 +870,10 @@ AI Animation Pipeline
 
     )
 
+
+      self.controller.print_render_queue()
+
+
       self.render_engine.render_project(
 
         progress_callback=self.update_progress

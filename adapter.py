@@ -78,9 +78,16 @@ class FramePackAdapter:
 
       print(self.client.view_api())
 
+      threading.Thread(
+        target=self._server_log,
+        daemon=True
+        ).start()
+
+
       print("--------------------------------")
 
 
+   
 
 
     def _server_log(self):
@@ -92,8 +99,6 @@ class FramePackAdapter:
     def render_phase(self, start_image, end_image, prompt,
                      negative_prompt, duration, resolution, steps,
                      segment_folder=None, output_name=None):
-
-        threading.Thread(target=self._server_log, daemon=True).start()
 
         job = self.client.submit(
             input_image=handle_file(start_image),

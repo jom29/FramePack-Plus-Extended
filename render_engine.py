@@ -206,15 +206,9 @@ class RenderEngine:
          phase.end_image
          )
 
-       positive_prompt = self.controller.get_positive_prompt()
-
-       negative_prompt = self.controller.get_negative_prompt()
-
-       duration = self.controller.get_duration()
-
-       steps = self.controller.get_steps()
-
-       resolution = self.controller.get_resolution()
+       settings = self.controller.get_render_settings(
+        phase
+       )
 
        segment_folder = str(output_video.parent)
 
@@ -227,20 +221,21 @@ class RenderEngine:
        print("--------------------------------")
 
        result = self.adapter.render_phase(
-
+       
         start_image=start_image,
 
         end_image=end_image,
 
-        prompt=positive_prompt,
 
-        negative_prompt=negative_prompt,
+        prompt=settings["positive_prompt"],
 
-        duration=duration,
+        negative_prompt=settings["negative_prompt"],
 
-        resolution=resolution,
+        duration=settings["duration"],
 
-        steps=steps,
+        resolution=settings["resolution"],
+
+        steps=settings["steps"],
 
         segment_folder=segment_folder,
 
