@@ -5,6 +5,8 @@ from pathlib import Path
 from controller import Controller
 from render_engine import RenderEngine
 from settings import load_paths, save_paths
+from video_stitcher import VideoStitcher
+
 
 class FramePackWebGUI:
 
@@ -14,9 +16,11 @@ class FramePackWebGUI:
 
         self.render_engine = RenderEngine(
 
-         self.controller
+          self.controller
 
         )
+
+        self.stitcher = VideoStitcher()
 
 
         self.build_interface()
@@ -217,7 +221,7 @@ class FramePackWebGUI:
 
          variant="secondary",
 
-        interactive=False
+        interactive=True
 
        )
         
@@ -434,10 +438,18 @@ AI Animation Pipeline
 
          self.end_filename
 
-    ]
+                ]
 
-   )
+      )
 
+
+
+
+      self.stitch_button.click(
+
+      fn=self.on_merge
+
+      )
 
 
 
@@ -629,6 +641,13 @@ AI Animation Pipeline
         "Finished"
 
     )
+
+
+
+    def on_merge(self):
+
+     self.stitcher.merge()
+
 
 
     def update_progress(

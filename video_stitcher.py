@@ -1,107 +1,167 @@
-
 import os
 import subprocess
+from pathlib import Path
 
 
-def main():
+class VideoStitcher:
 
-    print("===================================")
-    print("FramePack Video Stitcher")
-    print("===================================")
-    print()
+    def merge(self):
 
-    ffmpeg_exe = input("FFmpeg Executable : ").strip()
+        print("===================================")
+        print("FramePack Video Stitcher")
+        print("===================================")
+        print()
 
-    if not os.path.isfile(ffmpeg_exe):
-        print("\nERROR: FFmpeg executable not found.")
-        return
+        # ------------------------------------------------------------
+        # Internal Project Paths
+        # ------------------------------------------------------------
 
-    clips_folder = input("Target Clips Folder : ").strip()
+        ffmpeg_exe = Path("projects/demo/ffmpeg/ffmpeg.exe")
 
-    if not os.path.isdir(clips_folder):
-        print("\nERROR: Clips folder not found.")
-        return
+        clips_folder = Path("projects/demo/segments")
 
-    output_folder = input("Output Folder : ").strip()
+        output_folder = Path("projects/demo/output")
 
-    os.makedirs(output_folder, exist_ok=True)
-
-    output_name = input("Output Video Name [final.mp4] : ").strip()
-
-    if not output_name:
         output_name = "final.mp4"
 
-    if not output_name.lower().endswith(".mp4"):
-        output_name += ".mp4"
+        # ------------------------------------------------------------
+        # Validation
+        # ------------------------------------------------------------
 
-    # ------------------------------------------------------------
-    # Scan all MP4 clips (alphabetically)
-    # ------------------------------------------------------------
+        if not ffmpeg_exe.is_file():
+            print("\nERROR: FFmpeg executable not found.")
+            print(ffmpeg_exe)
+            return False
 
-    videos = sorted(
-        f for f in os.listdir(clips_folder)
-        if f.lower().endswith(".mp4")
-    )
+        if not clips_folder.is_dir():
+            print("\nERROR: Segment folder not found.")
+            print(clips_folder)
+            return False
 
-    if not videos:
-        print("\nERROR: No MP4 files found in the selected folder.")
-        return
+        output_folder.mkdir(
+            parents=True,
+            exist_ok=True
+        )
 
-    print()
-    print(f"Found {len(videos)} clips:\n")
+        # ------------------------------------------------------------
+        # Scan all MP4 clips (alphabetically)
+        # ------------------------------------------------------------
 
-    for v in videos:
-        print(" ", v)
+        videos = sorted(
+            f.name
+            for f in clips_folder.iterdir()
+            if f.suffix.lower() == ".mp4"
+        )
 
-    answer = input("\nProceed with merge? (Y/N): ").strip().lower()
+        if not videos:
+            print("\nERROR: No MP4 clips found.")
+            return False
 
-    if answer != "y":
-        print("Cancelled.")
-        return
+        print(f"Found {len(videos)} clips:\n")
 
-    concat_file = os.path.join(clips_folder, "segments.txt")
+        for video in videos:
+            print(" ", video)
 
-    with open(concat_file, "w", encoding="utf-8") as f:
-        for v in videos:
-            f.write(f"file '{v}'\n")
+        # ------------------------------------------------------------
+        # Create segments.txt
+        # ------------------------------------------------------------
 
-    output_video = os.path.join(output_folder, output_name)
+        concat_file = clips_folder / "segments.txt"
 
-    cmd = [
-        ffmpeg_exe,
-        "-y",
-        "-f", "concat",
-        "-safe", "0",
-        "-i", concat_file,
-        "-c", "copy",
-        output_video,
-    ]
+        with open(concat_file, "w", encoding="utf-8") as file:
 
-    print("\nRunning FFmpeg...\n")
+            for video in videos:
 
-    result = subprocess.run(
-        cmd,
-        cwd=clips_folder,
-        capture_output=True,
-        text=True
-    )
+                file.write(f"file '{video}'\n")
 
-    try:
-        os.remove(concat_file)
-    except OSError:
-        pass
+        # ------------------------------------------------------------
+        # Output
+        # ------------------------------------------------------------
 
-    if result.returncode != 0:
-        print(result.stdout)
-        print(result.stderr)
-        print("Merge failed.")
-        return
+        output_video = output_folder / output_name
 
-    print("===================================")
-    print("MERGE COMPLETED")
-    print("===================================")
-    print(output_video)
+        output_video = output_video.resolve()
+
+        cmd = [
+
+            str(ffmpeg_exe),
+
+            "-y",
+
+            "-f", "concat",
+
+            "-safe", "0",
+
+            "-i", "segments.txt",
+
+            "-c", "copy",
+
+            str(output_video)
+
+        ]
+
+        print("\nRunning FFmpeg...\n")
 
 
-if __name__ == "__main__":
-    main()
+        print("--------------------------------")
+        print("Current Working Directory:")
+        print(clips_folder)
+
+        print()
+
+        print("Concat File:")
+        print(concat_file)
+
+        print()
+
+        print("Exists:")
+        print(concat_file.exists())
+        print("--------------------------------")
+
+
+        result = subprocess.run(
+
+            cmd,
+
+            cwd=str(clips_folder),
+
+            capture_output=True,
+
+            text=True
+
+        )
+
+        # ------------------------------------------------------------
+        # Cleanup
+        # ------------------------------------------------------------
+
+        try:
+            concat_file.unlink()
+        except OSError:
+            pass
+
+        # ------------------------------------------------------------
+        # Finished
+        # ------------------------------------------------------------
+
+        if result.returncode != 0:
+
+            print(result.stdout)
+
+            print(result.stderr)
+
+            print("Merge failed.")
+
+            return False
+
+        print()
+
+        print("===================================")
+
+        print("MERGE COMPLETED")
+
+        print("===================================")
+
+        print(output_video)
+
+        return True
