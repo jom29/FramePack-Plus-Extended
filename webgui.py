@@ -231,14 +231,33 @@ class FramePackWebGUI:
 
          fn=self.on_generate,
 
-         outputs=[
+         inputs=[
 
-          self.progress,
+      self.positive_prompt,
 
-          self.status
+      self.negative_prompt,
 
-         ]
-        )
+      self.duration,
+
+      self.steps,
+
+      self.resolution
+
+    ],
+
+    outputs=[
+
+        self.progress,
+
+        self.status
+
+    ]
+
+)
+
+
+
+
 
 
     # --------------------------------------------------
@@ -626,21 +645,69 @@ AI Animation Pipeline
    # Generate Batch
    # --------------------------------------------------
 
-    def on_generate(self):
+    def on_generate(
 
-     self.render_engine.render_project(
+     self,
 
-        progress_callback=self.update_progress
+     positive_prompt,
+
+     negative_prompt,
+
+     duration,
+
+     steps,
+
+    resolution
+
+    ):
+
+      self.controller.set_positive_prompt(
+
+        positive_prompt
 
      )
 
-     return (
+      self.controller.set_negative_prompt(
+
+        negative_prompt
+
+    )
+
+      self.controller.set_duration(
+
+        duration
+
+    )
+
+      self.controller.set_steps(
+
+        steps
+
+    )
+
+      self.controller.set_resolution(
+
+        resolution
+
+    )
+
+      self.render_engine.render_project(
+
+        progress_callback=self.update_progress
+
+    )
+
+      return (
 
         100,
 
         "Finished"
 
     )
+
+
+
+
 
 
 
