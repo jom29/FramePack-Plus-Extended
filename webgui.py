@@ -94,6 +94,8 @@ class FramePackWebGUI:
 
         gr.Markdown("---")
 
+        self.build_video_preview()
+
         self.build_preview_panel()
 
         gr.Markdown("---")
@@ -336,6 +338,40 @@ AI Animation Pipeline
             """
         )
 
+
+    
+
+    # --------------------------------------------------
+    # Video Preview
+    # --------------------------------------------------
+
+    def build_video_preview(self):
+
+     gr.Markdown("## 🎬 Animation Preview")
+
+     self.video_preview = gr.Video(
+
+        value=self.controller.get_current_phase_video(),
+
+        interactive=False,
+
+        autoplay=False,
+
+        show_label=False,
+
+        height=420
+
+     )
+
+     self.video_status = gr.Markdown(
+
+     self.controller.get_current_phase_video_status()
+
+     )
+
+
+
+
     # --------------------------------------------------
     # Preview Panel
     # --------------------------------------------------
@@ -448,6 +484,10 @@ AI Animation Pipeline
 
         self.phase_title,
 
+        self.video_preview,
+
+        self.video_status,
+
         self.start_preview,
 
         self.start_filename,
@@ -479,6 +519,10 @@ AI Animation Pipeline
       self.phase_selector,
 
       self.phase_title,
+
+      self.video_preview,
+
+      self.video_status,
 
       self.start_preview,
 
@@ -515,6 +559,10 @@ AI Animation Pipeline
         self.phase_selector,
 
         self.phase_title,
+
+        self.video_preview,
+
+        self.video_status,
 
         self.start_preview,
 
@@ -688,6 +736,10 @@ AI Animation Pipeline
 
      phase = self.controller.get_current_phase()
 
+     video = self.controller.get_current_phase_video()
+
+     video_status = self.controller.get_current_phase_video_status()
+
      start_image = self.controller.get_start_image()
      end_image = self.controller.get_end_image()
 
@@ -714,6 +766,10 @@ AI Animation Pipeline
      return (
 
        title,
+
+       video,
+
+       video_status,
 
        start_image,
 

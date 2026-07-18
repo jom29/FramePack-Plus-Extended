@@ -734,6 +734,58 @@ class Controller:
 
 
 
+    # --------------------------------------------------------
+    # Preview
+    # --------------------------------------------------------
+
+    def get_phase_video(self, phase):
+
+     video = self.segment_folder / f"phase_{phase.index:03}.mp4"
+
+     if video.exists():
+
+        return str(video)
+
+     return None
+
+
+    def get_current_phase_video(self):
+
+     return self.get_phase_video(
+
+        self.get_current_phase()
+
+    )
+
+
+    def get_phase_video_status(self, phase):
+
+     if self.phase_has_video(phase):
+
+        return "Render Complete"
+
+     return "Not Rendered Yet"
+
+
+    def get_current_phase_video_status(self):
+
+     return self.get_phase_video_status(
+
+        self.get_current_phase()
+
+    )
+
+
+    def phase_has_video(self, phase):
+
+     return self.get_phase_video(
+
+        phase
+
+    ) is not None
+
+
+
 
 
 
