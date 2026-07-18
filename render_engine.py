@@ -184,6 +184,76 @@ class RenderEngine:
 
         self.unload_model()
 
+
+
+    def render_current_phase(
+
+     self,
+
+     progress_callback=None
+
+     ):
+
+     self.initialize_adapter()
+
+     self.cancel_requested = False
+
+     self.load_model()
+
+     phase = self.controller.get_current_phase()
+
+     output_folder = Path("projects/demo/segments")
+
+     output_folder.mkdir(
+
+        parents=True,
+
+        exist_ok=True
+
+    )
+
+     output_video = output_folder / f"phase_{phase.index:03}.mp4"
+
+     print()
+
+     print("========================================")
+     print("Render Current Phase")
+     print("========================================")
+     print(phase.name)
+     print(output_video)
+
+     self._progress(
+
+        progress_callback,
+
+        0,
+
+        f"Rendering {phase.name}"
+
+     )
+
+     self.render_phase(
+
+        phase,
+
+        output_video
+
+     )
+
+     self._progress(
+
+        progress_callback,
+
+        100,
+
+        "Finished"
+
+     )
+
+     self.unload_model()
+
+
+
     # --------------------------------------------------------
     # Single Phase
     # --------------------------------------------------------

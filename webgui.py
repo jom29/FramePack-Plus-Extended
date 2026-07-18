@@ -251,6 +251,15 @@ class FramePackWebGUI:
 
         )
 
+        self.generate_current_button = gr.Button(
+
+         "🎬 Generate Current Phase",
+
+          variant="secondary"
+
+        )
+
+
         self.progress = gr.Slider(
 
             minimum=0,
@@ -319,7 +328,37 @@ class FramePackWebGUI:
 
     ]
 
-)
+ )
+
+
+
+        self.generate_current_button.click(
+
+         fn=self.on_generate_current_phase,
+
+        inputs=[
+
+        self.positive_prompt,
+
+        self.negative_prompt,
+
+        self.duration,
+
+        self.steps,
+
+        self.resolution
+
+    ],
+
+    outputs=[
+
+        self.progress,
+
+        self.status
+
+    ]
+
+  )
 
 
 
@@ -983,6 +1022,70 @@ AI Animation Pipeline
         "Finished"
 
     )
+
+
+
+    def on_generate_current_phase(
+
+     self,
+
+     positive_prompt,
+
+     negative_prompt,
+
+     duration,
+
+     steps,
+
+     resolution
+
+ ):
+
+     self.controller.set_positive_prompt(
+
+        positive_prompt
+
+    )
+
+     self.controller.set_negative_prompt(
+
+        negative_prompt
+
+    )
+
+     self.controller.set_duration(
+
+        duration
+
+    )
+
+     self.controller.set_steps(
+
+        steps
+
+    )
+
+     self.controller.set_resolution(
+
+        resolution
+
+    )
+
+     self.render_engine.render_current_phase(
+
+        progress_callback=self.update_progress
+
+    )
+
+     return (
+
+        100,
+
+        "Finished"
+
+    )
+
+
 
 
 
