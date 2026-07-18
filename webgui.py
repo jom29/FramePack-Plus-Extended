@@ -14,6 +14,8 @@ class FramePackWebGUI:
 
         self.controller = Controller()
 
+        self.controller.initialize_project()
+
         self.render_engine = RenderEngine(
 
           self.controller
@@ -609,7 +611,19 @@ AI Animation Pipeline
 
      )
       
+      
+      self.refresh_button.click(
 
+      fn=self.on_refresh_library,
+
+      outputs=[
+
+        self.gallery
+
+    ]
+
+   )
+      
 
       self.set_end_button.click(
 
@@ -736,7 +750,17 @@ AI Animation Pipeline
 
      phase = self.controller.get_current_phase()
 
+     print()
+     print("========================================")
+     print("Refreshing Phase Editor")
+     print("========================================")
+     print("Phase :", phase.name)
+
      video = self.controller.get_current_phase_video()
+
+     video = gr.update(
+       value=video
+     )
 
      video_status = self.controller.get_current_phase_video_status()
 
@@ -801,6 +825,22 @@ AI Animation Pipeline
       print(image_path)
 
 
+    def on_refresh_library(self):
+
+     print()
+     print("========================================")
+     print("Refreshing Image Library")
+     print("========================================")
+
+     images = self.controller.get_images()
+
+     print(f"Found {len(images)} images.")
+
+     return gr.update(
+
+        value=images
+
+    )
     
     
       

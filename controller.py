@@ -742,11 +742,20 @@ class Controller:
 
      video = self.segment_folder / f"phase_{phase.index:03}.mp4"
 
+     print()
+     print("--------------------------------")
+     print("Current Phase :", phase.name)
+     print("Video Path    :", video)
+     print("Exists        :", video.exists())
+     print("--------------------------------")
+
      if video.exists():
 
         return str(video)
 
      return None
+
+
 
 
     def get_current_phase_video(self):

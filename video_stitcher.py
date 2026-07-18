@@ -1,6 +1,8 @@
 import os
 import subprocess
 from pathlib import Path
+import platform
+import shutil
 
 
 class VideoStitcher:
@@ -16,7 +18,15 @@ class VideoStitcher:
         # Internal Project Paths
         # ------------------------------------------------------------
 
-        ffmpeg_exe = Path("projects/demo/ffmpeg/ffmpeg.exe")
+
+        if platform.system() == "Windows":
+
+         ffmpeg_exe = Path("projects/demo/ffmpeg/ffmpeg.exe")
+
+        else:
+
+         ffmpeg_exe = shutil.which("ffmpeg")
+
 
         clips_folder = Path("projects/demo/segments")
 
@@ -28,10 +38,23 @@ class VideoStitcher:
         # Validation
         # ------------------------------------------------------------
 
-        if not ffmpeg_exe.is_file():
+        if ffmpeg_exe is None:
+
+          print("\nERROR: FFmpeg not found.")
+
+          return False
+
+        if isinstance(ffmpeg_exe, Path):
+
+         if not ffmpeg_exe.is_file():
+ 
             print("\nERROR: FFmpeg executable not found.")
+
             print(ffmpeg_exe)
+
             return False
+
+
 
         if not clips_folder.is_dir():
             print("\nERROR: Segment folder not found.")
