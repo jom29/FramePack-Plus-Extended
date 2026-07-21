@@ -45,43 +45,6 @@ class MultiKeyAdapter:
 
 
 
-    #---------------------------------------------------
-    def render_original(self,
-                    timeline,
-                    prompt,
-                    negative_prompt,
-                    duration,
-                    steps):
-
-      print()
-
-      print("========================================")
-      print("Original Render Request")
-      print("========================================")
-
-      start_image = str(timeline.keyposes[0].image_path)
-
-      end_image = str(timeline.keyposes[-1].image_path)
-
-      print()
-
-      print("Start")
-
-      print(start_image)
-
-      print()
-
-      print("End")
-
-      print(end_image)
-
-      print()
-
-      print("Submitting Request...")
-
-
-
-
     # --------------------------------------------------
 
     def discover_runtime(
@@ -206,152 +169,110 @@ class MultiKeyAdapter:
 
 
     def render_motion(
-
-        self,
-
-        timeline,
-
-        prompt,
-
-        negative_prompt,
-
-        duration,
-
-        resolution,
-
-        steps,
-
-        runtime_root,
-
-        webui_root,
-
-        output_folder
-
+      self,
+      timeline,
+      prompt,
+      negative_prompt,
+      duration,
+      resolution,
+      steps,
+      runtime_root,
+      webui_root,
+    output_folder
     ):
 
-        print()
+      print()
+      print("========================================")
+      print("MultiKey Adapter")
+      print("========================================")
 
-        print("========================================")
-        print("MultiKey Adapter")
-        print("========================================")
+      print()
+      print("Runtime")
+      print(runtime_root)
 
-        print()
+      print()
+      print("WebUI")
+      print(webui_root)
 
-        print("Runtime")
+      print()
+      print("Output")
+      print(output_folder)
 
-        print(runtime_root)
+      print()
+      print("----------------------------------------")
+      print("MotionTimeline Received")
+      print("----------------------------------------")
 
-        print()
+      print()
+      print("KeyFrames :", len(timeline.keyposes))
 
-        print("WebUI")
-
-        print(webui_root)
-
-        print()
-
-        print("Output")
-
-        print(output_folder)
-
-        print()
-
-        print("----------------------------------------")
-        print("MotionTimeline Received")
-        print("----------------------------------------")
-
-        print()
-
-        print("KeyFrames :", len(timeline.keyposes))
-
-        for pose in timeline.keyposes:
-
-            print(
-
-                pose.index + 1,
-
-                "-",
-
-                pose.image_path.name
-
-            )
-
-
-
-
-
-
-
-
-
-
-        print()
-
-        env = self.discover_runtime(
-
-        runtime_root,
-
-        webui_root
-
-      )
-
-        print()
-
-        print("========================================")
-        print("Runtime Discovery")
-        print("========================================")
-
-        print()
-
-        print("Valid")
-
-        print(env.valid)
-
-        print()
-
-        print("Python")
-
-        print(env.python_executable)
-
-        print()
-
-        print("Demo")
-
-        print(env.demo_gradio)
-
-        print()
-
-        print("Working Directory")
-
-        print(env.working_directory)
-
-
-        self.launch_runtime(
-
-        env
-
+      for pose in timeline.keyposes:
+        print(
+            pose.index + 1,
+            "-",
+            pose.image_path.name
         )
 
-        self.wait_until_ready()
+      print()
 
-        self.connect_runtime()
+      env = self.discover_runtime(
+        runtime_root,
+        webui_root
+     )
 
-        self.render_original(
+      print()
+      print("========================================")
+      print("Runtime Discovery")
+      print("========================================")
 
+      print()
+      print("Valid")
+      print(env.valid)
+
+      print()
+      print("Python")
+      print(env.python_executable)
+
+      print()
+      print("Demo")
+      print(env.demo_gradio)
+
+      print()
+      print("Working Directory")
+      print(env.working_directory)
+
+      self.launch_runtime(env)
+
+      self.wait_until_ready()
+
+      self.connect_runtime()
+
+    # --------------------------------------------------
+    # Research Pipeline
+    # --------------------------------------------------
+
+      self.render_direct(
         timeline,
-
         prompt,
-
         negative_prompt,
-
         duration,
-
         steps
+     )
 
-      )
+      return
 
+    # --------------------------------------------------
+    # Original FramePack Pipeline
+    # (Disabled while doing research)
+    # --------------------------------------------------
 
-
-
+    # self.render_original(
+    #     timeline,
+    #     prompt,
+    #     negative_prompt,
+    #     duration,
+    #     steps
+    # )
 
 
 
@@ -365,156 +286,145 @@ class MultiKeyAdapter:
       steps
   ):
 
+
+
+
       print()
       print("========================================")
       print("Original Render Request")
       print("========================================")
 
-      start_image = str(timeline.keyposes[0].image_path)
 
-      end_image = str(timeline.keyposes[-1].image_path)
 
-      print("Start :", start_image)
-      print("End   :", end_image)
 
       print()
-      print("Submitting request...")
-
-      import time
 
       print()
-      print("[1] Building Payload")
 
-      payload = {
+      print("========================================")
+      print("Direct Research Pipeline")
+      print("========================================")
 
-      "input_image": {
+      print()
 
-        "path": start_image
+     
+     
 
-      },
-
-      "end_image": {
-
-        "path": end_image
-
-      },
-
-       "prompt": prompt,
-
-      "n_prompt": negative_prompt,
-
-      "seed": 31337,
-
-      "total_second_length": duration,
-
-      "latent_window_size": 9,
-
-      "steps": steps,
-
-      "cfg": 1.0,
-
-      "gs": 10.0,
-
-      "rs": 0.0,
-
-      "gpu_memory_preservation": 6,
-
-      "use_teacache": True,
-
-      "mp4_crf": 16
-
-     }
-
+    def render_direct(
+   
+     self,
+     timeline,
+     prompt,
+     negative_prompt,
+     duration,
+     steps
+     ):
       
 
+      from PIL import Image
+      import numpy as np
+      import torch
+
+      from diffusers_helper.hunyuan import vae_encode
 
 
 
-
-
-
-
-
-
-
-      job = self.client.submit(
-
-       input_image=handle_file(start_image),
-
-       end_image=handle_file(end_image),
-
-       prompt=prompt,
-
-      n_prompt=negative_prompt,
-
-      seed=31337,
-
-      total_second_length=duration,
-
-      latent_window_size=9,
-
-      steps=steps,
-
-      cfg=1.0,
-
-      gs=10.0,
-
-      rs=0.0,
-
-    gpu_memory_preservation=6,
-
-    use_teacache=True,
-
-    mp4_crf=16,
-
-    resolution=640,
-
-    teacache_threshold=0.15,
-
-    lora_file=None,
-
-    lora_multiplier=0.8,
-
-    fp8_optimization=False,
-
-    api_name="/process"
-
-  )
-
-      print()
-      print("Job Submitted")
-
-      last = None
-
-      while True:
-
-       status = job.status()
-
-       if str(status) != last:
-
-         print(status)
-
-         last = str(status)
-
-       if job.done():
-
-         break
-
-      time.sleep(2)
-
-      print()
-      print("Retrieving Result...")
-
-      result = job.result(timeout=None)
+      from PIL import Image
+      import numpy as np
+      import torch
 
       print()
       print("========================================")
-      print("Render Finished")
+      print("Direct Research Pipeline")
       print("========================================")
 
-      print(result)
+      # --------------------------------------------------
+      # Load Images
+      # --------------------------------------------------
 
+      loaded_images = []
 
+      print()
+      print("========================================")
+      print("Loading Images")
+      print("========================================")
+
+      for pose in timeline.keyposes:
+
+        image = Image.open(
+            pose.image_path
+        ).convert("RGB")
+
+        loaded_images.append(image)
+
+        print(
+            f"[{pose.index}]",
+            image.size
+        )
+
+      # --------------------------------------------------
+      # Convert To NumPy
+      # --------------------------------------------------
+
+      numpy_images = []
+
+      print()
+      print("========================================")
+      print("Converting To NumPy")
+      print("========================================")
+
+      for i, image in enumerate(loaded_images):
+
+        array = np.array(image)
+
+        numpy_images.append(array)
+
+        print(
+            f"[{i}]",
+            array.shape,
+            array.dtype
+        )
+
+      # --------------------------------------------------
+      # Convert To Torch Tensor
+      # --------------------------------------------------
+
+      tensor_images = []
+
+      print()
+      print("========================================")
+      print("Converting To Torch Tensor")
+      print("========================================")
+
+      for image in numpy_images:
+
+        image_pt = torch.from_numpy(image).float() / 127.5 - 1
+
+        image_pt = image_pt.permute(
+            2,
+            0,
+            1
+        )[None, :, None]
+
+        tensor_images.append(image_pt)
+
+      for i, tensor in enumerate(tensor_images):
+
+        print(
+            f"[{i}]",
+            tuple(tensor.shape),
+            tensor.dtype
+        )
+
+      print()
+      print("========================================")
+      print("Research Stage Complete")
+      print("========================================")
+      print(f"Loaded Images : {len(loaded_images)}")
+      print(f"NumPy Arrays  : {len(numpy_images)}")
+      print(f"Torch Tensors : {len(tensor_images)}")
+
+      return
 
 
 
