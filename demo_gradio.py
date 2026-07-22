@@ -310,7 +310,7 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
                # To:
                #     (1, C, H, W, 1)
                # ------------------------------------------------------
-        tensor = tensor.permute(2, 0, 1)[None, :, :, None]
+        tensor = tensor.permute(2, 0, 1)[None, :, None]
       
                # ------------------------------------------------------
                # Store tensor
@@ -396,6 +396,12 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
         llama_vec_n, llama_attention_mask_n = crop_or_pad_yield_mask(llama_vec_n, length=512)
 
 
+          # Processing input image (start frame)
+        stream.output_queue.push(('progress', (None, '', make_progress_bar_html(0, 'Processing start frame ...'))))
+
+        H, W, C = input_image.shape
+        height, width = find_nearest_bucket(H, W, resolution=resolution)
+        input_image_np = resize_and_center_crop(input_image, target_width=width, target_height=height)
 
 
 
@@ -427,8 +433,8 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
         if lora_file is not None:
             metadata.add_text("lora_file", str(os.path.basename(lora_file)))
             metadata.add_text("lora_multiplier", str(lora_multiplier))
-        #metadata.add_text("gpu_memory_preservation", str(gpu_memory_preservation))
-        Image.fromarray(input_image_np).save(os.path.join(outputs_folder, f'{job_id}.png'), pnginfo=metadata)
+            #metadata.add_text("gpu_memory_preservation", str(gpu_memory_preservation))
+            Image.fromarray(input_image_np).save(os.path.join(outputs_folder, f'{job_id}.png'), pnginfo=metadata)
 
 
 
@@ -459,6 +465,58 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
 
        
         
+
+      # ==========================================================
+      # M5.5 : Latent Collection
+      # ==========================================================
+      #
+      # Goal:
+      # Convert every tensor inside tensor_collection into
+      # FramePack latent representations using the official
+      # vae_encode() helper.
+      #
+      # This does NOT replace FramePack's original latent
+      # variables yet.
+      #
+      # ==========================================================
+
+        latent_collection = []
+
+        for tensor in tensor_collection:
+
+         latent = vae_encode(
+         tensor,
+         vae
+        )
+
+        latent_collection.append(latent)
+
+
+       # ==========================================================
+       # Verification Logs
+       # ==========================================================
+        print()
+        print("========================================")
+        print("M5.5 : Latent Collection")
+        print("========================================")
+        print()
+
+        print(f"Total Latents : {len(latent_collection)}")
+        print()
+
+        for index, latent in enumerate(latent_collection):
+
+          print(f"Latent {index}")
+
+          print("Shape :", tuple(latent.shape))
+          print("DType :", latent.dtype)
+          print("Device:", latent.device)
+
+          print("Min   :", float(latent.min()))
+          print("Max   :", float(latent.max()))
+
+          print()
+
 
        
 
