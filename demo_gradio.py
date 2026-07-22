@@ -487,9 +487,9 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
          latent = vae_encode(
          tensor,
          vae
-        )
+         )
 
-        latent_collection.append(latent)
+         latent_collection.append(latent)
 
 
        # ==========================================================
@@ -518,6 +518,68 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
           print()
 
 
+
+
+
+
+        # ==========================================================
+        # M5.5A : Compatibility Layer
+        # ==========================================================
+        #
+        # Goal:
+        # Bridge the new latent_collection with the original
+        # FramePack runtime.
+        #
+        # The original sampler still expects:
+        #
+        #     start_latent
+        #     end_latent
+        #
+        # These variables are recreated from the collection so
+        # the remaining FramePack pipeline continues to work.
+        # 
+        # NOTE:
+        # This is TEMPORARY.
+        #
+        # Future milestones will remove this bridge and allow
+        # the sampler to work directly with latent_collection.
+        #
+        # ==========================================================
+
+        print()
+        print("========================================")
+        print("M5.5A : Compatibility Layer")
+        print("========================================")
+        print()
+
+        # ----------------------------------------------------------
+        # Assign Start Latent
+        # ----------------------------------------------------------
+
+        start_latent = latent_collection[0]
+
+        print("Start Latent Assigned")
+        print("Shape :", tuple(start_latent.shape))
+        print()
+
+        # ----------------------------------------------------------
+        # Assign End Latent
+        # ----------------------------------------------------------
+
+        if len(latent_collection) > 1:
+
+          end_latent = latent_collection[1]
+
+          print("End Latent Assigned")
+          print("Shape :", tuple(end_latent.shape))
+          print()
+
+        else:
+
+           end_latent = None
+
+           print("No End Latent")
+           print()
        
 
 
