@@ -277,14 +277,200 @@ class MultiKeyAdapter:
 
 
 
+      print()
+
+      print("========================================")
+      print("Original Render Request")
+      print("========================================")
+
+      start_image = str(timeline.keyposes[0].image_path)
+
+      end_image = str(timeline.keyposes[-1].image_path)
+
+      print()
+
+      print("Start")
+
+      print(start_image)
+
+      print()
+
+      print("End")
+
+      print(end_image)
+
+      print()
+
+      print("Submitting Request...")
+
+
+
+
+
+
 
       print()
       print("========================================")
       print("Original Render Request")
       print("========================================")
 
+      start_image = str(timeline.keyposes[0].image_path)
 
-    
+      end_image = str(timeline.keyposes[-1].image_path)
+
+      print("Start :", start_image)
+      print("End   :", end_image)
+
+      print()
+      print("Submitting request...")
+
+      import time
+
+      print()
+      print("[1] Building Payload")
+
+      payload = {
+
+      "input_image": {
+
+        "path": start_image
+
+      },
+
+      "end_image": {
+
+        "path": end_image
+
+      },
+
+       "prompt": prompt,
+
+      "n_prompt": negative_prompt,
+
+      "seed": 31337,
+
+      "total_second_length": duration,
+
+      "latent_window_size": 9,
+
+      "steps": steps,
+
+      "cfg": 1.0,
+
+      "gs": 10.0,
+
+      "rs": 0.0,
+
+      "gpu_memory_preservation": 6,
+
+      "use_teacache": True,
+
+      "mp4_crf": 16
+
+     }
+
+      
+
+
+
+
+
+
+
+
+
+
+
+      job = self.client.submit(
+
+       input_image=handle_file(start_image),
+
+       end_image=handle_file(end_image),
+
+       prompt=prompt,
+
+      n_prompt=negative_prompt,
+
+      seed=31337,
+
+      total_second_length=duration,
+
+      latent_window_size=9,
+
+      steps=steps,
+
+      cfg=1.0,
+
+      gs=10.0,
+
+      rs=0.0,
+
+      gpu_memory_preservation=6,
+
+      use_teacache=True,
+
+      mp4_crf=16,
+
+      resolution=640,
+
+      teacache_threshold=0.15,
+
+      lora_file=None,
+
+      lora_multiplier=0.8,
+
+      fp8_optimization=False,
+
+      api_name="/process"
+
+     )
+
+      print()
+      print("Job Submitted")
+
+      last = None
+
+      while True:
+
+       status = job.status()
+
+       if str(status) != last:
+
+         print(status)
+
+         last = str(status)
+
+       if job.done():
+
+         break
+
+      time.sleep(2)
+
+      print()
+      print("Retrieving Result...")
+
+      result = job.result(timeout=None)
+
+      print()
+      print("========================================")
+      print("Render Finished")
+      print("========================================")
+
+      print(result)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
