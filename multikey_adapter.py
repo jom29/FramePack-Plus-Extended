@@ -247,17 +247,13 @@ class MultiKeyAdapter:
 
       self.connect_runtime()
 
-    # --------------------------------------------------
-    # Research Pipeline
-    # --------------------------------------------------
-
-      self.render_direct(
-        timeline,
-        prompt,
-        negative_prompt,
-        duration,
-        steps
-     )
+      self.render_original(
+       timeline,
+       prompt,
+       negative_prompt,
+       duration,
+       steps
+       )
 
       return
 
@@ -266,25 +262,18 @@ class MultiKeyAdapter:
     # (Disabled while doing research)
     # --------------------------------------------------
 
-    # self.render_original(
-    #     timeline,
-    #     prompt,
-    #     negative_prompt,
-    #     duration,
-    #     steps
-    # )
-
+ 
 
 
     #------------------------------------------------
     def render_original(
-      self,
-      timeline,
-      prompt,
-      negative_prompt,
-      duration,
-      steps
-  ):
+     self,
+     timeline,
+     prompt,
+     negative_prompt,
+     duration,
+     steps
+     ):
 
 
 
@@ -295,147 +284,7 @@ class MultiKeyAdapter:
       print("========================================")
 
 
-
-
-      print()
-
-      print()
-
-      print("========================================")
-      print("Direct Research Pipeline")
-      print("========================================")
-
-      print()
-
-     
-     
-
-    def render_direct(
-   
-     self,
-     timeline,
-     prompt,
-     negative_prompt,
-     duration,
-     steps
-     ):
-      
-
-      from PIL import Image
-      import numpy as np
-      import torch
-
-      from diffusers_helper.hunyuan import vae_encode
-
-
-
-      from PIL import Image
-      import numpy as np
-      import torch
-
-      print()
-      print("========================================")
-      print("Direct Research Pipeline")
-      print("========================================")
-
-      # --------------------------------------------------
-      # Load Images
-      # --------------------------------------------------
-
-      loaded_images = []
-
-      print()
-      print("========================================")
-      print("Loading Images")
-      print("========================================")
-
-      for pose in timeline.keyposes:
-
-        image = Image.open(
-            pose.image_path
-        ).convert("RGB")
-
-        loaded_images.append(image)
-
-        print(
-            f"[{pose.index}]",
-            image.size
-        )
-
-      # --------------------------------------------------
-      # Convert To NumPy
-      # --------------------------------------------------
-
-      numpy_images = []
-
-      print()
-      print("========================================")
-      print("Converting To NumPy")
-      print("========================================")
-
-      for i, image in enumerate(loaded_images):
-
-        array = np.array(image)
-
-        numpy_images.append(array)
-
-        print(
-            f"[{i}]",
-            array.shape,
-            array.dtype
-        )
-
-      # --------------------------------------------------
-      # Convert To Torch Tensor
-      # --------------------------------------------------
-
-      tensor_images = []
-
-      print()
-      print("========================================")
-      print("Converting To Torch Tensor")
-      print("========================================")
-
-      for image in numpy_images:
-
-        image_pt = torch.from_numpy(image).float() / 127.5 - 1
-
-        image_pt = image_pt.permute(
-            2,
-            0,
-            1
-        )[None, :, None]
-
-        tensor_images.append(image_pt)
-
-      for i, tensor in enumerate(tensor_images):
-
-        print(
-            f"[{i}]",
-            tuple(tensor.shape),
-            tensor.dtype
-        )
-
-      print()
-      print("========================================")
-      print("Research Stage Complete")
-      print("========================================")
-      print(f"Loaded Images : {len(loaded_images)}")
-      print(f"NumPy Arrays  : {len(numpy_images)}")
-      print(f"Torch Tensors : {len(tensor_images)}")
-
-      return
-
-
-
-
-
-
-
-
-
-
-
+    
 
 
 
