@@ -133,6 +133,26 @@ def render_pipeline():
 
 @torch.no_grad()
 def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, resolution, teacache_threshold, lora_file, lora_multiplier, fp8_optimization):
+
+    # ==========================================================
+    # M6 : Runtime State
+    # ==========================================================
+
+    runtime = {}
+
+    runtime["frames"] = []
+    runtime["processed_frames"] = []
+    runtime["tensors"] = []
+    runtime["latents"] = []
+
+    runtime["conditioning"] = {}
+    runtime["resources"] = {}
+    runtime["timeline"] = {}
+    runtime["compatibility"] = {}
+
+
+
+
     
     print()
     print("RUNNING FILE:")
@@ -165,19 +185,25 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
     frame_collection = []
 
     if input_image is not None:
-     frame_collection.append(input_image)
+      frame_collection.append(input_image)
 
     if end_image is not None:
-     frame_collection.append(end_image)
+      frame_collection.append(end_image)
 
-     print()
-     print("========================================")
-     print("M5.2 : Runtime Frame Collection")
-     print("========================================")
-     print()
+    runtime["frames"] = frame_collection
 
-     print(f"Total Frames : {len(frame_collection)}")
-     print()
+
+
+
+
+    print()
+    print("========================================")
+    print("M5.2 : Runtime Frame Collection")
+    print("========================================")
+    print()
+
+    print(f"Total Frames : {len(frame_collection)}")
+    print()
 
     for index, frame in enumerate(frame_collection):
 
