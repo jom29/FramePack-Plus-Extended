@@ -128,31 +128,82 @@ def render_pipeline():
     print("Pipeline Entry")
 
 
+# ==========================================================
+# M6 : Runtime State
+# ==========================================================
+
+class RuntimeState:
+
+    def __init__(self):
+
+        # Pipeline Collections
+        self.frames = []
+        self.processed_frames = []
+        self.tensors = []
+        self.latents = []
+
+
+
+
+        # Runtime Components
+        self.conditioning = {}
+        self.resources = {}
+        self.timeline = {}
+        self.compatibility = {}
+
+
+
+      # ==========================================================
+      # M7 Experimental Runtime
+      # ==========================================================
+
+        self.experimental = {
+
+          "latent_collection": None,
+ 
+          "start_index": 0,
+
+         "end_index": 1
+
+          }
+
+
+
+
+
+
 
 
 
 @torch.no_grad()
-def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, resolution, teacache_threshold, lora_file, lora_multiplier, fp8_optimization):
+def worker(
+    frame_collection,
+    prompt,
+    n_prompt,
+    seed,
+    total_second_length,
+    latent_window_size,
+    steps,
+    cfg,
+    gs,
+    rs,
+    gpu_memory_preservation,
+    use_teacache,
+    mp4_crf,
+    resolution,
+    teacache_threshold,
+    lora_file,
+    lora_multiplier,
+    fp8_optimization
+   ):
 
     # ==========================================================
     # M6 : Runtime State
     # ==========================================================
 
-    runtime = {}
+    runtime = RuntimeState()
 
-    runtime["frames"] = []
-    runtime["processed_frames"] = []
-    runtime["tensors"] = []
-    runtime["latents"] = []
-
-    runtime["conditioning"] = {}
-    runtime["resources"] = {}
-    runtime["timeline"] = {}
-    runtime["compatibility"] = {}
-
-
-
-
+  
     
     print()
     print("RUNNING FILE:")
@@ -182,16 +233,20 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
    # M5.2 : Runtime Frame Collection
    # --------------------------------------------------
 
-    frame_collection = []
+    from PIL import Image
+    import numpy as np
 
-    if input_image is not None:
-      frame_collection.append(input_image)
+    runtime.frames.clear()
 
-    if end_image is not None:
-      frame_collection.append(end_image)
+    for frame in frame_collection:
 
-    runtime["frames"] = frame_collection
+      print("Frame Type :", type(frame))
 
+      image = Image.open(frame["path"]).convert("RGB")
+
+      image = np.array(image)
+
+      runtime.frames.append(image)
 
 
 
@@ -202,10 +257,10 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
     print("========================================")
     print()
 
-    print(f"Total Frames : {len(frame_collection)}")
+    print(f"Total Frames : {len(runtime.frames)}")
     print()
 
-    for index, frame in enumerate(frame_collection):
+    for index, frame in enumerate(runtime.frames):
 
      print(f"Frame {index}")
 
@@ -243,7 +298,7 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
     
     processed_frame_collection = []
     
-    for frame in frame_collection:
+    for frame in runtime.frames:
     
         # Original frame size
           H, W, C = frame.shape
@@ -425,9 +480,33 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
           # Processing input image (start frame)
         stream.output_queue.push(('progress', (None, '', make_progress_bar_html(0, 'Processing start frame ...'))))
 
-        H, W, C = input_image.shape
+        
+        
+
+
+        start_frame = runtime.frames[0]
+
+        H, W, C = start_frame.shape
+
+        height, width = find_nearest_bucket(
+        H,
+        W,
+        resolution=resolution
+       )
+
+        input_image_np = resize_and_center_crop(
+        start_frame,
+        target_width=width,
+        target_height=height
+        )
+
+
         height, width = find_nearest_bucket(H, W, resolution=resolution)
-        input_image_np = resize_and_center_crop(input_image, target_width=width, target_height=height)
+        input_image_np = resize_and_center_crop(
+        start_frame,
+        target_width=width,
+        target_height=height
+        )
 
 
 
@@ -468,18 +547,47 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
         input_image_pt = torch.from_numpy(input_image_np).float() / 127.5 - 1
         input_image_pt = input_image_pt.permute(2, 0, 1)[None, :, None]
         
+
+
+       
+
+
+
+
         # Processing end image (if provided)
-        has_end_image = end_image is not None
+
+        has_end_image = len(runtime.frames) > 1
+
         if has_end_image:
-            stream.output_queue.push(('progress', (None, '', make_progress_bar_html(0, 'Processing end frame ...'))))
-            
-            H_end, W_end, C_end = end_image.shape
-            end_image_np = resize_and_center_crop(end_image, target_width=width, target_height=height)
-            
-            Image.fromarray(end_image_np).save(os.path.join(outputs_folder, f'{job_id}_end.png'))
-            
-            end_image_pt = torch.from_numpy(end_image_np).float() / 127.5 - 1
-            end_image_pt = end_image_pt.permute(2, 0, 1)[None, :, None]
+
+         stream.output_queue.push(
+         ('progress', (None, '', make_progress_bar_html(0, 'Processing end frame ...')))
+        )
+
+        end_frame = runtime.frames[-1]
+
+        H_end, W_end, C_end = end_frame.shape
+
+        end_image_np = resize_and_center_crop(
+         end_frame,
+         target_width=width,
+         target_height=height
+        )
+
+        Image.fromarray(end_image_np).save(
+         os.path.join(outputs_folder, f'{job_id}_end.png')
+        )
+
+        end_image_pt = torch.from_numpy(end_image_np).float() / 127.5 - 1
+
+        end_image_pt = end_image_pt.permute(2, 0, 1)[None, :, None]
+
+
+
+
+
+
+
 
         # VAE encoding
         stream.output_queue.push(('progress', (None, '', make_progress_bar_html(0, 'VAE encoding ...'))))
@@ -544,6 +652,34 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
           print()
 
 
+        # ==========================================================
+        # M7.1
+        # Experimental Runtime State
+        # ==========================================================
+
+        runtime.experimental["latent_collection"] = latent_collection
+
+
+
+
+        print()
+        print("========================================")
+        print("M7.1 : Experimental Runtime")
+        print("========================================")
+        print()
+
+        print("Runtime Latent Count :",
+        len(runtime.experimental["latent_collection"]))
+
+        print()
+
+        for index, latent in enumerate(runtime.experimental["latent_collection"]):
+
+           print(f"Latent Index {index}")
+
+           print("Shape :", tuple(latent.shape))
+
+           print()
 
 
 
@@ -579,36 +715,68 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
         print()
 
         # ----------------------------------------------------------
-        # Assign Start Latent
+        # M7.2 : Dynamic Latent Selection
         # ----------------------------------------------------------
 
-        start_latent = latent_collection[0]
+        start_index = runtime.experimental["start_index"]
+
+        if len(latent_collection) > 1:
+            end_index = runtime.experimental["end_index"]
+        else:
+            end_index = None
+
+        start_latent = latent_collection[start_index]
+
+        if end_index is not None:
+            end_latent = latent_collection[end_index]
+        else:
+            end_latent = None
+
+        print()
+        print("========================================")
+        print("M7.2 : Dynamic Latent Selection")
+        print("========================================")
+        print()
+
+        print("Selected Start Index :", start_index)
+
+        if end_index is not None:
+            print("Selected End Index   :", end_index)
+        else:
+            print("Selected End Index   : None")
+
+        print()
+
+        print("Selected Start Latent")
+        print("Shape :", tuple(start_latent.shape))
+        print()
+
+        if end_latent is not None:
+            print("Selected End Latent")
+            print("Shape :", tuple(end_latent.shape))
+            print()
+        else:
+            print("Selected End Latent : None")
+            print()
+
+        # ----------------------------------------------------------
+        # Compatibility Layer
+        # ----------------------------------------------------------
 
         print("Start Latent Assigned")
         print("Shape :", tuple(start_latent.shape))
         print()
 
-        # ----------------------------------------------------------
-        # Assign End Latent
-        # ----------------------------------------------------------
+        if end_latent is not None:
 
-        if len(latent_collection) > 1:
-
-          end_latent = latent_collection[1]
-
-          print("End Latent Assigned")
-          print("Shape :", tuple(end_latent.shape))
-          print()
+            print("End Latent Assigned")
+            print("Shape :", tuple(end_latent.shape))
+            print()
 
         else:
 
-           end_latent = None
-
-           print("No End Latent")
-           print()
-       
-
-
+            print("No End Latent")
+            print()
 
         # CLIP Vision
         stream.output_queue.push(('progress', (None, '', make_progress_bar_html(0, 'CLIP Vision encoding ...'))))
@@ -715,14 +883,208 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
             clean_latent_indices_pre, blank_indices, latent_indices, clean_latent_indices_post, clean_latent_2x_indices, clean_latent_4x_indices = indices.split([1, latent_padding_size, latent_window_size, 1, 2, 16], dim=1)
             clean_latent_indices = torch.cat([clean_latent_indices_pre, clean_latent_indices_post], dim=1)
 
+
+            # ==========================================================
+            # POC-1 : Three Keyframe Conditioning
+            # Expand conditioning indices
+            # ==========================================================
+
+            third_latent_index = clean_latent_indices_post + 1
+
+            experimental_clean_latent_indices = torch.cat(
+            [
+            clean_latent_indices_pre,
+            clean_latent_indices_post,
+            third_latent_index
+            ],
+            dim=1
+            )
+
+           
+            print("========================================")
+            print("POC-1 : Latent Index")
+            print("========================================")
+
+            print(clean_latent_indices)
+            print(clean_latent_indices.shape)
+
+
+
+            #INVESTIGATIONS
+
+            print()
+
+            print("========================================")
+            print("M7.3 : clean_latent_indices Investigation")
+            print("========================================")
+            print()
+
+            print("clean_latent_indices_pre")
+            print("Shape :", tuple(clean_latent_indices_pre.shape))
+            print(clean_latent_indices_pre)
+            print()
+
+            print("clean_latent_indices_post")
+            print("Shape :", tuple(clean_latent_indices_post.shape))
+            print(clean_latent_indices_post)
+            print()
+
+            print("clean_latent_indices")
+            print("Shape :", tuple(clean_latent_indices.shape))
+            print(clean_latent_indices)
+            print()
+
+            print("latent_indices")
+            print("Shape :", tuple(latent_indices.shape))
+            print(latent_indices)
+            print()
+
+
+
+
+
+
             clean_latents_pre = start_latent.to(history_latents)
             clean_latents_post, clean_latents_2x, clean_latents_4x = history_latents[:, :, :1 + 2 + 16, :, :].split([1, 2, 16], dim=2)
-            clean_latents = torch.cat([clean_latents_pre, clean_latents_post], dim=2)
+
+
+            
+
+
+
+            # ==========================================================
+            # POC-1 : Three Keyframe Conditioning
+            # ==========================================================
+
+            third_latent = runtime.experimental["latent_collection"][2]
+
+            third_latent = third_latent.to(history_latents)
+
+            experimental_clean_latents = torch.cat(
+            [
+             clean_latents_pre,
+             clean_latents_post,
+             third_latent
+            ],
+             dim=2
+            )
+
+
+
+            print()
+            print("========================================")
+            print("POC-1 : Latent / Index Consistency")
+            print("========================================")
+
+            print("experimental_clean_latents :", experimental_clean_latents.shape)
+            print("clean_latent_indices       :", clean_latent_indices.shape)
+            print(clean_latent_indices)
+
+            #assert experimental_clean_latents.shape[2] == clean_latent_indices.shape[1], \
+            #"Latent count does not match latent index count"
+
+
+
+
+            print()
+
+            print("========================================")
+            print("M7.3 : clean_latents_4x Investigation")
+            print("========================================")
+            print()
+
+            print("clean_latents_4x")
+
+            print("Shape :", tuple(clean_latents_4x.shape))
+            print("DType :", clean_latents_4x.dtype)
+            print("Device:", clean_latents_4x.device)
+
+            print()
+
+            print("Temporal Dimension")
+
+            print("clean_latents_4x :", clean_latents_4x.shape[2])
+
+            print()
+
+            print("Min :", float(clean_latents_4x.min()))
+            print("Max :", float(clean_latents_4x.max()))
+
+            print()
+
+
+
+
+
+
+
+
+            #CLEAN LATENTS 2X INVESTIGATIONS
+            print()
+
+            print("========================================")
+            print("M7.3 : clean_latents_2x Investigation")
+            print("========================================")
+            print()
+
+            print("clean_latents_2x")
+
+            print("Shape :", tuple(clean_latents_2x.shape))
+            print("DType :", clean_latents_2x.dtype)
+            print("Device:", clean_latents_2x.device)
+
+            print()
+
+            print("Temporal Dimension")
+
+            print("clean_latents_2x :", clean_latents_2x.shape[2])
+
+            print()
+
+            print("Min :", float(clean_latents_2x.min()))
+            print("Max :", float(clean_latents_2x.max()))
+
+            print()
+
+
+
+
+
+
+         
+
+
+
             
             # Use end image latent for the first section if provided
             if has_end_image and is_first_section:
                 clean_latents_post = end_latent.to(history_latents)
                 clean_latents = torch.cat([clean_latents_pre, clean_latents_post], dim=2)
+
+
+                #CLEAN LATENT INVESTIGATION
+                print("M7.3 : clean_latents Investigation")
+                print("========================================")
+                print()
+                
+                print("clean_latents_pre")
+                print("Shape :", tuple(clean_latents_pre.shape))
+                print()
+                 
+                print("clean_latents_post")
+                print("Shape :", tuple(clean_latents_post.shape))
+                print()
+                
+                print("clean_latents")
+                print("Shape :", tuple(clean_latents.shape))
+                print()
+                
+                print("Temporal Dimension")
+                print("clean_latents_pre :", clean_latents_pre.shape[2])
+                print("clean_latents_post:", clean_latents_post.shape[2])
+                print("clean_latents     :", clean_latents.shape[2])
+                print()
+
 
             if not high_vram:
                 unload_complete_models()
@@ -753,6 +1115,89 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
                 stream.output_queue.push(('progress', (preview, desc, make_progress_bar_html(percentage, hint))))
                 return
 
+
+
+            #TENSOR TO HUANYUN INVESTIGATION
+            print()
+            print("========================================")
+            print("M7.3 : sample_hunyuan Conditioning Interface")
+            print("========================================")
+            print()
+
+            print("clean_latents")
+            print("Shape :", tuple(clean_latents.shape))
+            print()
+
+            print("clean_latent_indices")
+            print("Shape :", tuple(clean_latent_indices.shape))
+            print(clean_latent_indices)
+            print()
+
+            print("clean_latents_2x")
+            print("Shape :", tuple(clean_latents_2x.shape))
+            print()
+
+            print("clean_latent_2x_indices")
+            print("Shape :", tuple(clean_latent_2x_indices.shape))
+            print(clean_latent_2x_indices)
+            print()
+
+            print("clean_latents_4x")
+            print("Shape :", tuple(clean_latents_4x.shape))
+            print()
+
+            print("clean_latent_4x_indices")
+            print("Shape :", tuple(clean_latent_4x_indices.shape))
+            print(clean_latent_4x_indices)
+            print()
+
+            print("latent_indices")
+            print("Shape :", tuple(latent_indices.shape))
+            print(latent_indices)
+            print()
+
+            print("sample_hunyuan()")
+            print("Conditioning Interface Ready")
+            print()
+
+
+
+
+
+            print()
+            print("========================================")
+            print("POC-1 : Three Keyframe Conditioning")
+            print("========================================")
+            print()
+
+            print("Experimental clean_latents")
+            print(tuple(experimental_clean_latents.shape))
+            print()
+ 
+            print("Original clean_latents")
+            print(tuple(clean_latents.shape))
+            print()
+
+
+
+
+            print()
+            print("========================================")
+            print("FINAL INPUT TO sample_hunyuan")
+            print("========================================")
+
+            print("clean_latents argument")
+            print(experimental_clean_latents.shape)
+
+            print()
+
+            print("clean_latent_indices argument")
+            print(experimental_clean_latent_indices.shape)
+            print(experimental_clean_latent_indices)
+
+
+
+
             generated_latents = sample_hunyuan(
                 transformer=transformer,
                 sampler='unipc',
@@ -775,8 +1220,8 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
                 dtype=torch.bfloat16,
                 image_embeddings=image_encoder_last_hidden_state,
                 latent_indices=latent_indices,
-                clean_latents=clean_latents,
-                clean_latent_indices=clean_latent_indices,
+                clean_latents=experimental_clean_latents,
+                clean_latent_indices=experimental_clean_latent_indices,
                 clean_latents_2x=clean_latents_2x,
                 clean_latent_2x_indices=clean_latent_2x_indices,
                 clean_latents_4x=clean_latents_4x,
@@ -839,18 +1284,8 @@ def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, 
     return
 
 
-def process(input_image, end_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, resolution, teacache_threshold, lora_file, lora_multiplier, fp8_optimization):
-    global stream
-    assert input_image is not None, 'No input image!'
-
-    yield None, None, '', '', gr.update(interactive=False), gr.update(interactive=True)
-
-    stream = AsyncStream()
-
-    async_run(
-    worker,
-    np.array(input_image),
-    end_image,
+def process(
+    frame_collection,
     prompt,
     n_prompt,
     seed,
@@ -868,7 +1303,36 @@ def process(input_image, end_image, prompt, n_prompt, seed, total_second_length,
     lora_file,
     lora_multiplier,
     fp8_optimization
-   )
+):
+    global stream
+    assert frame_collection is not None
+    assert len(frame_collection) > 0, 'No input image!'
+
+    yield None, None, '', '', gr.update(interactive=False), gr.update(interactive=True)
+
+    stream = AsyncStream()
+
+    async_run(
+    worker,
+    frame_collection,
+    prompt,
+    n_prompt,
+    seed,
+    total_second_length,
+    latent_window_size,
+    steps,
+    cfg,
+    gs,
+    rs,
+    gpu_memory_preservation,
+    use_teacache,
+    mp4_crf,
+    resolution,
+    teacache_threshold,
+    lora_file,
+    lora_multiplier,
+    fp8_optimization
+    )
 
 
 
@@ -888,6 +1352,98 @@ def process(input_image, end_image, prompt, n_prompt, seed, total_second_length,
         if flag == 'end':
             yield output_filename, gr.update(visible=False), gr.update(), '', gr.update(interactive=True), gr.update(interactive=False)
             break
+
+
+def process_multikey(
+    frame_collection,
+    prompt,
+    n_prompt,
+    seed,
+    total_second_length,
+    latent_window_size,
+    steps,
+    cfg,
+    gs,
+    rs,
+    gpu_memory_preservation,
+    use_teacache,
+    mp4_crf,
+    resolution,
+    teacache_threshold,
+    lora_file,
+    lora_multiplier,
+    fp8_optimization
+):
+
+    global stream
+
+    assert frame_collection is not None
+    assert len(frame_collection) > 0
+
+    yield None, None, '', '', gr.update(interactive=False), gr.update(interactive=True)
+
+    stream = AsyncStream()
+
+    async_run(
+
+        worker,
+
+        frame_collection,
+
+        prompt,
+
+        n_prompt,
+
+        seed,
+
+        total_second_length,
+
+        latent_window_size,
+
+        steps,
+
+        cfg,
+
+        gs,
+
+        rs,
+
+        gpu_memory_preservation,
+
+        use_teacache,
+
+        mp4_crf,
+
+        resolution,
+
+        teacache_threshold,
+
+        lora_file,
+
+        lora_multiplier,
+
+        fp8_optimization
+
+    )
+
+    output_filename = None
+
+    while True:
+
+        flag, data = stream.output_queue.next()
+
+        if flag == 'file':
+            output_filename = data
+            yield output_filename, gr.update(), gr.update(), gr.update(), gr.update(interactive=False), gr.update(interactive=True)
+
+        if flag == 'progress':
+            preview, desc, html = data
+            yield gr.update(), gr.update(visible=True, value=preview), desc, html, gr.update(interactive=False), gr.update(interactive=True)
+
+        if flag == 'end':
+            yield output_filename, gr.update(visible=False), gr.update(), '', gr.update(interactive=True), gr.update(interactive=False)
+            break
+
 
 
 def end_process():
@@ -1007,6 +1563,10 @@ with block:
                     input_image = gr.Image(sources='upload', type="pil", label="Start Frame", height=320, show_fullscreen_button=False, interactive=True)
                 with gr.Column():
                     end_image = gr.Image(sources='upload', type="numpy", label="End Frame (Optional)", height=320)
+                multikey_frames = gr.JSON(
+                 label="MultiKey Frames",
+                 visible=False
+                )
             
             prompt = gr.Textbox(label="Prompt", value='')
             example_quick_prompts = gr.Dataset(samples=quick_prompts, label='Quick List', samples_per_page=1000, components=[prompt])
@@ -1049,7 +1609,48 @@ with block:
             open_output_folder_button.click(fn=open_output_folder, inputs=[], outputs=[])
 
     ips = [input_image, end_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, resolution, teacache_threshold, lora_file, lora_multiplier, fp8_optimization]
+
+    multikey_ips = [
+      multikey_frames,
+      prompt,
+      n_prompt,
+      seed,
+      total_second_length,
+      latent_window_size,
+      steps,
+      cfg,
+      gs,
+      rs,
+      gpu_memory_preservation,
+      use_teacache,
+      mp4_crf,
+      resolution,
+      teacache_threshold,
+      lora_file,
+      lora_multiplier,
+      fp8_optimization
+    ]
+
+
+
     start_button.click(fn=process, inputs=ips, outputs=[result_video, preview_image, progress_desc, progress_bar, start_button, end_button])
+
+    multikey_button = gr.Button(visible=False)
+
+    multikey_button.click(
+     fn=process_multikey,
+     inputs=multikey_ips,
+     outputs=[
+        result_video,
+        preview_image,
+        progress_desc,
+        progress_bar,
+        start_button,
+        end_button
+    ],
+    api_name="process_multikey"
+    )
+
     end_button.click(fn=end_process)
 
 
