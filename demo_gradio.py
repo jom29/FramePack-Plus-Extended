@@ -1250,7 +1250,17 @@ def worker(
         # Sampling
         stream.output_queue.push(('progress', (None, '', make_progress_bar_html(0, 'Start sampling ...'))))
         rnd = torch.Generator("cpu").manual_seed(seed)
+
         num_frames = latent_window_size * 4 - 3
+
+        history_latents = torch.zeros(
+        size=(1, 16, 1 + 2 + 16, height // 8, width // 8),
+        dtype=torch.float32
+        ).cpu()
+
+        history_pixels = None
+
+        total_generated_latent_frames = 0
 
 
 
@@ -1297,9 +1307,7 @@ def worker(
              active_segment.segment_index
            ]
 
-            history_latents = runtime_segment.history_latents
-            history_pixels = runtime_segment.history_pixels
-            total_generated_latent_frames = runtime_segment.total_generated_latent_frames
+           
             
 
          
@@ -1714,14 +1722,6 @@ def worker(
 
             print(f"=== EXIT LOOP : latent_padding={latent_padding} ===")
 
-
-            # ==========================================================
-            # Save Segment Runtime State
-            # ==========================================================
-            
-            runtime_segment.history_latents = history_latents
-            runtime_segment.history_pixels = history_pixels
-            runtime_segment.total_generated_latent_frames = total_generated_latent_frames
 
             
             current_section -= 1
