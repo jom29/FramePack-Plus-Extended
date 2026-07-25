@@ -141,6 +141,7 @@ class RuntimeState:
         self.processed_frames = []
         self.tensors = []
         self.latents = []
+        self.segment_collection = []
 
 
 
@@ -166,6 +167,49 @@ class RuntimeState:
          "end_index": 1
 
           }
+
+
+# ==========================================================
+# Segment Runtime
+# One FramePack generation session
+# ==========================================================
+
+class SegmentRuntime:
+
+    def __init__(self):
+
+        self.segment_index = 0
+
+        self.start_index = 0
+        self.end_index = 1
+
+        self.start_frame = None
+        self.end_frame = None
+
+        self.start_tensor = None
+        self.end_tensor = None
+
+        self.start_latent = None
+        self.end_latent = None
+
+        # ============================
+        # Runtime State
+        # ============================
+
+        self.generated_latents = None
+
+        self.history_latents = None
+        self.history_pixels = None
+
+        self.total_generated_latent_frames = 0
+
+        self.clean_latent_indices = None
+
+        self.history_before = None
+        self.history_after = None
+
+
+
 
 
 
@@ -937,6 +981,65 @@ def worker(
 
         runtime.experimental["latent_collection"] = latent_collection
 
+        # ==========================================================
+        # Build Segment Runtime Collection
+        # ==========================================================
+
+        runtime.segment_collection.clear()
+
+        for i in range(len(latent_collection) - 1):
+
+           segment = SegmentRuntime()
+
+           segment.segment_index = i
+
+           segment.start_index = i
+           segment.end_index = i + 1
+
+           segment.start_frame = runtime.frames[i]
+           segment.end_frame = runtime.frames[i + 1]
+
+           segment.start_tensor = tensor_collection[i]
+           segment.end_tensor = tensor_collection[i + 1]
+
+           segment.start_latent = latent_collection[i]
+           segment.end_latent = latent_collection[i + 1]
+
+
+           segment.history_latents = torch.zeros(
+            size=(1, 16, 1 + 2 + 16, height // 8, width // 8),
+            dtype=torch.float32
+            ).cpu()
+
+           segment.history_pixels = None
+           segment.total_generated_latent_frames = 0
+
+            
+           segment.history_latents
+           segment.history_pixels
+           segment.total_generated_latent_frames
+           runtime.segment_collection.append(segment)
+
+
+        print()
+        print("========================================")
+        print("Segment Runtime Collection")
+        print("========================================")
+        print()
+
+        for segment in runtime.segment_collection:
+
+          print(f"Segment {segment.segment_index}")
+
+          print(f"Start : {segment.start_index}")
+
+          print(f"End   : {segment.end_index}")
+
+          print(tuple(segment.start_latent.shape))
+
+          print(tuple(segment.end_latent.shape))
+
+          print()
 
 
 
@@ -1146,14 +1249,12 @@ def worker(
                 transformer.to(gpu)
         # Sampling
         stream.output_queue.push(('progress', (None, '', make_progress_bar_html(0, 'Start sampling ...'))))
-
         rnd = torch.Generator("cpu").manual_seed(seed)
         num_frames = latent_window_size * 4 - 3
 
-        history_latents = torch.zeros(size=(1, 16, 1 + 2 + 16, height // 8, width // 8), dtype=torch.float32).cpu()
-        history_pixels = None
-        total_generated_latent_frames = 0
 
+
+        
         latent_paddings = list(reversed(range(total_latent_sections)))
 
         if total_latent_sections > 4:
@@ -1187,32 +1288,40 @@ def worker(
                )
 
 
+
+           # ==========================================================
+           # Retrieve Segment Runtime
+           # ==========================================================
+
+            runtime_segment = runtime.segment_collection[
+             active_segment.segment_index
+           ]
+
+            history_latents = runtime_segment.history_latents
+            history_pixels = runtime_segment.history_pixels
+            total_generated_latent_frames = runtime_segment.total_generated_latent_frames
             
+
+         
+
+            print()
+            print("========================================")
+            print("Segment Runtime Selected")
+            print("========================================")
+
+            print("Segment :", runtime_segment.segment_index)
+
+            print("Start :", runtime_segment.start_index)
+
+            print("End   :", runtime_segment.end_index)
+
+            print()
+
+
            
-
-            print()
-
-            print("========================================")
-            print("M8.3 : Dynamic Scheduler")
-            print("========================================")
-            print()
-
-            print("Timeline Iteration :", timeline_iteration)
-
-            print("Scheduler Window   :", timeline_iteration)
-
-            print("Active Segment     :", active_segment.segment_index)
-
-            print(
-              "Anchor Pair        :",
-               active_segment.start_keyframe,
-               "->",
-              active_segment.end_keyframe
-             )
-
-            print()
-
-
+            print("Runtime Segment :", runtime_segment.segment_index)
+            print("Start Latent :", id(runtime_segment.start_latent))
+            print("End Latent   :", id(runtime_segment.end_latent))
 
 
 
@@ -1226,7 +1335,7 @@ def worker(
             print(f'latent_padding_size = {latent_padding_size}, is_last_section = {is_last_section}, is_first_section = {is_first_section}')
 
             indices = torch.arange(0, sum([1, latent_padding_size, latent_window_size, 1, 2, 16])).unsqueeze(0)
-            clean_latent_indices_pre, blank_indices, latent_indices, clean_latent_indices_post, clean_latent_2x_indices, clean_latent_4x_indices = indices.split([1, latent_padding_size, latent_window_size, 1, 2, 16], dim=1)
+            clean_latent_indices_pre, blank_indices, latent_indices, clean_latent_indices_post, clean_latent_2x_indices, clean_latent_4x_indices = indices.split([1, latent_padding_size,             latent_window_size, 1, 2, 16], dim=1)
             clean_latent_indices = torch.cat([clean_latent_indices_pre, clean_latent_indices_post], dim=1)
 
 
@@ -1285,13 +1394,8 @@ def worker(
 
 
 
-            planner_start_latent = runtime.experimental["latent_collection"][
-             active_segment.start_keyframe
-            ]
-
-            planner_end_latent = runtime.experimental["latent_collection"][
-             active_segment.end_keyframe
-            ]
+            planner_start_latent = runtime_segment.start_latent
+            planner_end_latent = runtime_segment.end_latent
 
 
 
@@ -1318,9 +1422,7 @@ def worker(
 
 
 
-            planner_start_latent = runtime.experimental["latent_collection"][
-               active_segment.start_keyframe
-             ]
+            planner_start_latent = runtime_segment.start_latent
 
             clean_latents_pre = planner_start_latent.to(history_latents)
 
@@ -1353,9 +1455,7 @@ def worker(
             # POC-1 : Three Keyframe Conditioning
             # ==========================================================
 
-            planner_end_latent = runtime.experimental["latent_collection"][
-              active_segment.end_keyframe
-            ]
+            planner_end_latent = runtime_segment.end_latent
 
             planner_end_latent = planner_end_latent.to(history_latents)
 
@@ -1375,22 +1475,6 @@ def worker(
             ],
             dim=2
             )
-
-
-
-            print()
-            print("========================================")
-            print("POC-1 : Latent / Index Consistency")
-            print("========================================")
-
-            print("experimental_clean_latents :", experimental_clean_latents.shape)
-            print("clean_latent_indices       :", clean_latent_indices.shape)
-            print(clean_latent_indices)
-
-            #assert experimental_clean_latents.shape[2] == clean_latent_indices.shape[1], \
-            #"Latent count does not match latent index count"
-
-
 
 
             print()
@@ -1516,98 +1600,19 @@ def worker(
                 return
 
 
-
-            #TENSOR TO HUANYUN INVESTIGATION
             print()
-            print("========================================")
-            print("M7.3 : sample_hunyuan Conditioning Interface")
-            print("========================================")
-            print()
-
-            print("clean_latents")
-            print("Shape :", tuple(clean_latents.shape))
-            print()
-
-            print("clean_latent_indices")
-            print("Shape :", tuple(clean_latent_indices.shape))
-            print(clean_latent_indices)
+            print("================================")
+            print("Timeline Debug")
+            print("================================")
+            print("Iteration :", timeline_iteration)
+            print("Section   :", current_section)
+            print("Padding   :", latent_padding)
+            print("Planner Segment :", runtime_segment.segment_index)
+            print("Start Keyframe  :", runtime_segment.start_index)
+            print("End Keyframe    :", runtime_segment.end_index)
             print()
 
-            print("clean_latents_2x")
-            print("Shape :", tuple(clean_latents_2x.shape))
-            print()
-
-            print("clean_latent_2x_indices")
-            print("Shape :", tuple(clean_latent_2x_indices.shape))
-            print(clean_latent_2x_indices)
-            print()
-
-            print("clean_latents_4x")
-            print("Shape :", tuple(clean_latents_4x.shape))
-            print()
-
-            print("clean_latent_4x_indices")
-            print("Shape :", tuple(clean_latent_4x_indices.shape))
-            print(clean_latent_4x_indices)
-            print()
-
-            print("latent_indices")
-            print("Shape :", tuple(latent_indices.shape))
-            print(latent_indices)
-            print()
-
-            print("sample_hunyuan()")
-            print("Conditioning Interface Ready")
-            print()
-
-
-
-
-
-            print()
-            print("========================================")
-            print("POC-1 : Three Keyframe Conditioning")
-            print("========================================")
-            print()
-
-            print("Experimental clean_latents")
-            print(tuple(experimental_clean_latents.shape))
-            print()
- 
-            print("Original clean_latents")
-            print(tuple(clean_latents.shape))
-            print()
-
-
-
-
-            print()
-
-            print("========================================")
-            print("M8.4 : Dynamic Conditioning Packet")
-            print("========================================")
-            print()
-
-            print("Timeline Iteration :", timeline_iteration)
-
-            print("Planner Start :", active_segment.start_keyframe)
-
-            print("Planner End   :", active_segment.end_keyframe)
-
-            print()
-
-            print("Conditioning Packet")
-
-            print(tuple(experimental_clean_latents.shape))
-
-            print()
-
-            print("Conditioning Indices")
-
-            print(experimental_clean_latent_indices)
-
-            print()
-
+            
 
             generated_latents = sample_hunyuan(
                 transformer=transformer,
@@ -1710,6 +1715,15 @@ def worker(
             print(f"=== EXIT LOOP : latent_padding={latent_padding} ===")
 
 
+            # ==========================================================
+            # Save Segment Runtime State
+            # ==========================================================
+            
+            runtime_segment.history_latents = history_latents
+            runtime_segment.history_pixels = history_pixels
+            runtime_segment.total_generated_latent_frames = total_generated_latent_frames
+
+            
             current_section -= 1
             timeline_iteration += 1
 
