@@ -169,6 +169,197 @@ class RuntimeState:
 
 
 
+# ==========================================================
+# M8.1 : Timeline Segment
+# ==========================================================
+
+class TimelineSegment:
+
+    def __init__(
+        self,
+        segment_index,
+        start_keyframe,
+        end_keyframe,
+        first_section=None,
+        last_section=None
+    ):
+
+        self.segment_index = segment_index
+
+        self.start_keyframe = start_keyframe
+        self.end_keyframe = end_keyframe
+
+        self.first_section = first_section
+        self.last_section = last_section
+
+
+
+# ==========================================================
+# M8.1 : Timeline Planner
+# ==========================================================
+
+class TimelinePlanner:
+
+    def __init__(
+        self,
+        total_keyframes
+    ):
+
+        self.total_keyframes = total_keyframes
+
+        # Timeline Graph
+        self.segments = []
+
+        # Section Ownership Table
+        self.section_ownership = []
+
+        # Build timeline graph only
+        self.build_segments()
+
+    # ==========================================================
+    # M8.1
+    # Timeline Graph
+    # ==========================================================
+
+    def build_segments(self):
+
+        if self.total_keyframes < 2:
+            return
+
+        total_segments = self.total_keyframes - 1
+
+        for segment_index in range(total_segments):
+
+            segment = TimelineSegment(
+
+                segment_index=segment_index,
+
+                start_keyframe=segment_index,
+
+                end_keyframe=segment_index + 1,
+
+                first_section=None,
+
+                last_section=None
+
+            )
+
+            self.segments.append(segment)
+
+    # ==========================================================
+    # M8.2
+    # Section Ownership
+    # ==========================================================
+
+    def build_section_ownership(
+        self,
+        total_sections
+    ):
+
+        self.section_ownership.clear()
+
+        if len(self.segments) == 0:
+            return
+
+        total_segments = len(self.segments)
+
+        sections_per_segment = max(
+            1,
+            total_sections // total_segments
+        )
+
+        current_segment = 0
+
+        for section in range(total_sections):
+
+            self.section_ownership.append(current_segment)
+
+            if (
+                (section + 1) % sections_per_segment == 0
+                and current_segment < total_segments - 1
+            ):
+                current_segment += 1
+
+    def get_active_segment(
+        self,
+        section_index
+    ):
+
+        if len(self.section_ownership) == 0:
+            return None
+
+        if section_index >= len(self.section_ownership):
+            section_index = len(self.section_ownership) - 1
+
+        segment_index = self.section_ownership[section_index]
+
+        return self.segments[segment_index]
+
+    def print_section_ownership(self):
+
+      print()
+
+      print("========================================")
+      print("M8.2 : Section Ownership")
+      print("========================================")
+      print()
+
+      print("Total Keyframes :", self.total_keyframes)
+      print("Total Segments  :", len(self.segments))
+      print("Total Sections  :", len(self.section_ownership))
+      print()
+
+      print("----------------------------------------")
+      print("Timeline Graph")
+      print("----------------------------------------")
+
+      for segment in self.segments:
+
+        print(
+            f"Segment {segment.segment_index}"
+        )
+
+        print(
+            f"Anchor Pair : "
+            f"{segment.start_keyframe} -> {segment.end_keyframe}"
+        )
+
+        print()
+
+      print("----------------------------------------")
+      print("Ownership Table")
+      print("----------------------------------------")
+
+      for section_index, segment_index in enumerate(self.section_ownership):
+
+        segment = self.segments[segment_index]
+
+        print(
+
+            f"Section {section_index:02d}"
+
+            f"  -->  "
+
+            f"Segment {segment.segment_index}"
+
+            f"  ({segment.start_keyframe}"
+
+            f" -> "
+
+            f"{segment.end_keyframe})"
+
+        )
+
+      print()
+
+      print("========================================")
+      print("M8.2 Completed")
+      print("========================================")
+      print()
+
+
+
+
 
 
 
@@ -443,6 +634,93 @@ def worker(
 
     total_latent_sections = (total_second_length * 30) / (latent_window_size * 4)
     total_latent_sections = int(max(round(total_latent_sections), 1))
+
+    
+
+
+
+    print()
+
+    print("========================================")
+    print("M8.2A : Scheduler Characteristics")
+    print("========================================")
+    print()
+
+    print("Duration (Seconds) :", total_second_length)
+
+    print("Latent Window Size :", latent_window_size)
+
+    print("Total Scheduler Sections :", total_latent_sections)
+
+    print()
+
+
+
+
+
+    # ==========================================================
+    # M8.1 : Timeline Planner
+    # ==========================================================
+
+    planner = TimelinePlanner(
+      total_keyframes=len(runtime.frames)
+    )
+
+
+
+    planner.build_section_ownership(
+    total_latent_sections
+    )
+
+    planner.print_section_ownership()
+
+
+
+    print()
+    print("========================================")
+    print("M8.1 : Timeline Planner")
+    print("========================================")
+    print()
+
+    print("Total Keyframes :", planner.total_keyframes)
+    print("Total Segments  :", len(planner.segments))
+    print()
+
+    for segment in planner.segments:
+
+      print(f"Segment {segment.segment_index}")
+
+      print(
+        f"Anchor Pair : {segment.start_keyframe} -> {segment.end_keyframe}"
+      )
+
+      print()
+
+
+
+    # ==========================================================
+    # M8.2
+    # Ownership Lookup
+    # ==========================================================
+
+    def get_active_segment(
+      self,
+      scheduler_window
+     ):
+
+       if len(self.section_ownership) == 0:
+         return None
+
+       if scheduler_window >= len(self.section_ownership):
+        scheduler_window = len(self.section_ownership) - 1
+
+        segment_index = self.section_ownership[scheduler_window]
+
+       return self.segments[segment_index]
+
+
+
+
 
     job_id = generate_timestamp()
     job_id = f'{job_id}_{resolution}_{seed}{"_teacache" if use_teacache else ""}'
@@ -721,9 +999,9 @@ def worker(
         start_index = runtime.experimental["start_index"]
 
         if len(latent_collection) > 1:
-            end_index = runtime.experimental["end_index"]
+          end_index = runtime.experimental["end_index"]
         else:
-            end_index = None
+          end_index = None
 
         start_latent = latent_collection[start_index]
 
@@ -731,6 +1009,26 @@ def worker(
             end_latent = latent_collection[end_index]
         else:
             end_latent = None
+
+
+
+
+        print()
+        print("========================================")
+        print("M8.3 : Planner Controlled Latent Selection")
+        print("========================================")
+        print()
+
+        print("Assigned start_index :", start_index)
+        print("Assigned end_index   :", end_index)
+        print()
+
+        print("Start Latent Shape :", tuple(start_latent.shape))
+        print("End Latent Shape   :", tuple(end_latent.shape))
+        print()
+
+
+
 
         print()
         print("========================================")
@@ -867,11 +1165,59 @@ def worker(
             #latent_paddings = list(reversed(range(total_latent_sections)))
         
         current_section = total_latent_sections
+        timeline_iteration = 0
         
+         
+        print("latent_paddings =", latent_paddings)
+
         for latent_padding in latent_paddings:
             is_last_section = latent_padding == 0
             is_first_section = latent_padding == latent_paddings[0]
             latent_padding_size = latent_padding * latent_window_size
+
+
+            print(f"=== ENTER LOOP : latent_padding={latent_padding} ===")
+
+            print("Before planner lookup")
+
+
+
+            active_segment = planner.get_active_segment(
+               timeline_iteration
+               )
+
+
+            
+           
+
+            print()
+
+            print("========================================")
+            print("M8.3 : Dynamic Scheduler")
+            print("========================================")
+            print()
+
+            print("Timeline Iteration :", timeline_iteration)
+
+            print("Scheduler Window   :", timeline_iteration)
+
+            print("Active Segment     :", active_segment.segment_index)
+
+            print(
+              "Anchor Pair        :",
+               active_segment.start_keyframe,
+               "->",
+              active_segment.end_keyframe
+             )
+
+            print()
+
+
+
+
+
+
+
 
             if stream.input_queue.top() == 'end':
                 stream.output_queue.push(('end', None))
@@ -889,13 +1235,10 @@ def worker(
             # Expand conditioning indices
             # ==========================================================
 
-            third_latent_index = clean_latent_indices_post + 1
-
-            experimental_clean_latent_indices = torch.cat(
+            clean_latent_indices = torch.cat(
             [
-            clean_latent_indices_pre,
-            clean_latent_indices_post,
-            third_latent_index
+              clean_latent_indices_pre,
+              clean_latent_indices_post
             ],
             dim=1
             )
@@ -942,13 +1285,67 @@ def worker(
 
 
 
+            planner_start_latent = runtime.experimental["latent_collection"][
+             active_segment.start_keyframe
+            ]
+
+            planner_end_latent = runtime.experimental["latent_collection"][
+             active_segment.end_keyframe
+            ]
 
 
-            clean_latents_pre = start_latent.to(history_latents)
+
+            print()
+            print("========================================")
+            print("M8.3 : Planner Latent Lookup")
+            print("========================================")
+            print()
+
+            print("Planner Start :", active_segment.start_keyframe)
+            print("Planner End   :", active_segment.end_keyframe)
+            print()
+
+            print("Planner Start Shape :", tuple(planner_start_latent.shape))
+            print("Planner End Shape   :", tuple(planner_end_latent.shape))
+            print()
+
+
+
+
+
+
+
+
+
+
+            planner_start_latent = runtime.experimental["latent_collection"][
+               active_segment.start_keyframe
+             ]
+
+            clean_latents_pre = planner_start_latent.to(history_latents)
+
+            
             clean_latents_post, clean_latents_2x, clean_latents_4x = history_latents[:, :, :1 + 2 + 16, :, :].split([1, 2, 16], dim=2)
 
 
-            
+            # Replace only the primary post latent
+            clean_latents_post = planner_end_latent.to(history_latents)
+
+            print()
+
+            print("========================================")
+            print("M8.3A : Dynamic Start Conditioning")
+            print("========================================")
+            print()
+
+            print("Timeline Iteration :", timeline_iteration)
+
+            print("Planner Start Index :", active_segment.start_keyframe)
+
+            print("Planner Start Latent Shape :",
+             tuple(planner_start_latent.shape))
+
+            print()
 
 
 
@@ -956,17 +1353,27 @@ def worker(
             # POC-1 : Three Keyframe Conditioning
             # ==========================================================
 
-            third_latent = runtime.experimental["latent_collection"][2]
+            planner_end_latent = runtime.experimental["latent_collection"][
+              active_segment.end_keyframe
+            ]
 
-            third_latent = third_latent.to(history_latents)
+            planner_end_latent = planner_end_latent.to(history_latents)
 
-            experimental_clean_latents = torch.cat(
+            # ==========================================================
+            # Planner Conditioning
+            # ==========================================================
+            # The conditioning packet now consists only of the current
+            # segment's start and end keyframes.
+            # History remains available through clean_latents_2x and
+            # clean_latents_4x.
+            # ==========================================================
+
+            clean_latents = torch.cat(
             [
-             clean_latents_pre,
-             clean_latents_post,
-             third_latent
+              clean_latents_pre,
+              clean_latents_post
             ],
-             dim=2
+            dim=2
             )
 
 
@@ -1055,35 +1462,28 @@ def worker(
 
 
 
-            
-            # Use end image latent for the first section if provided
-            if has_end_image and is_first_section:
-                clean_latents_post = end_latent.to(history_latents)
-                clean_latents = torch.cat([clean_latents_pre, clean_latents_post], dim=2)
-
-
-                #CLEAN LATENT INVESTIGATION
-                print("M7.3 : clean_latents Investigation")
-                print("========================================")
-                print()
+             #CLEAN LATENT INVESTIGATION
+            print("M7.3 : clean_latents Investigation")
+            print("========================================")
+            print()
                 
-                print("clean_latents_pre")
-                print("Shape :", tuple(clean_latents_pre.shape))
-                print()
+            print("clean_latents_pre")
+            print("Shape :", tuple(clean_latents_pre.shape))
+            print()
                  
-                print("clean_latents_post")
-                print("Shape :", tuple(clean_latents_post.shape))
-                print()
+            print("clean_latents_post")
+            print("Shape :", tuple(clean_latents_post.shape))
+            print()
                 
-                print("clean_latents")
-                print("Shape :", tuple(clean_latents.shape))
-                print()
+            print("clean_latents")
+            print("Shape :", tuple(clean_latents.shape))
+            print()
                 
-                print("Temporal Dimension")
-                print("clean_latents_pre :", clean_latents_pre.shape[2])
-                print("clean_latents_post:", clean_latents_post.shape[2])
-                print("clean_latents     :", clean_latents.shape[2])
-                print()
+            print("Temporal Dimension")
+            print("clean_latents_pre :", clean_latents_pre.shape[2])
+            print("clean_latents_post:", clean_latents_post.shape[2])
+            print("clean_latents     :", clean_latents.shape[2])
+            print()
 
 
             if not high_vram:
@@ -1182,20 +1582,31 @@ def worker(
 
 
             print()
-            print("========================================")
-            print("FINAL INPUT TO sample_hunyuan")
-            print("========================================")
 
-            print("clean_latents argument")
-            print(experimental_clean_latents.shape)
+            print("========================================")
+            print("M8.4 : Dynamic Conditioning Packet")
+            print("========================================")
+            print()
+
+            print("Timeline Iteration :", timeline_iteration)
+
+            print("Planner Start :", active_segment.start_keyframe)
+
+            print("Planner End   :", active_segment.end_keyframe)
 
             print()
 
-            print("clean_latent_indices argument")
-            print(experimental_clean_latent_indices.shape)
+            print("Conditioning Packet")
+
+            print(tuple(experimental_clean_latents.shape))
+
+            print()
+
+            print("Conditioning Indices")
+
             print(experimental_clean_latent_indices)
 
-
+            print()
 
 
             generated_latents = sample_hunyuan(
@@ -1220,8 +1631,8 @@ def worker(
                 dtype=torch.bfloat16,
                 image_embeddings=image_encoder_last_hidden_state,
                 latent_indices=latent_indices,
-                clean_latents=experimental_clean_latents,
-                clean_latent_indices=experimental_clean_latent_indices,
+                clean_latents=clean_latents,
+                clean_latent_indices=clean_latent_indices,
                 clean_latents_2x=clean_latents_2x,
                 clean_latent_2x_indices=clean_latent_2x_indices,
                 clean_latents_4x=clean_latents_4x,
@@ -1236,6 +1647,38 @@ def worker(
 
             total_generated_latent_frames += int(generated_latents.shape[2])
             history_latents = torch.cat([generated_latents.to(history_latents), history_latents], dim=2)
+
+
+            print()
+            print("========================================")
+            print("M8.4A : History Latent Evolution")
+            print("========================================")
+            print()
+
+            print("Timeline Iteration :", timeline_iteration)
+
+            print()
+
+            print("Generated Latents")
+            print(tuple(generated_latents.shape))
+
+            print()
+
+            print("History Latents")
+            print(tuple(history_latents.shape))
+
+            print()
+
+            print("History Temporal Length :", history_latents.shape[2])
+
+            print()
+
+            print("History Min :", float(history_latents.min()))
+            print("History Max :", float(history_latents.max()))
+
+            print()
+
+            
 
             if not high_vram:
                 offload_model_from_device_for_memory_preservation(transformer, target_device=gpu, preserved_memory_gb=8)
@@ -1264,7 +1707,18 @@ def worker(
 
             stream.output_queue.push(('file', output_filename))
 
+            print(f"=== EXIT LOOP : latent_padding={latent_padding} ===")
+
+
             current_section -= 1
+            timeline_iteration += 1
+
+
+            print("Finished scheduler iteration", timeline_iteration - 1)
+            print("--------------------------------")
+
+
+
 
             if is_last_section:
                 elapsed_time = int(time.time() - start_time)
@@ -1279,6 +1733,10 @@ def worker(
             unload_complete_models(
                 text_encoder, text_encoder_2, image_encoder, vae, transformer
             )
+
+
+     
+
 
     stream.output_queue.push(('end', None))
     return

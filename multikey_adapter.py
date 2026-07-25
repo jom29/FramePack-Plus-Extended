@@ -1,7 +1,10 @@
+import platform
+import shutil
 import os
 import sys
 import subprocess
 from runtime_environment import RuntimeEnvironment
+
 
 import time
 import requests
@@ -65,63 +68,61 @@ class MultiKeyAdapter:
         # Candidate Python locations
         #
 
-        python_candidates = [
+       
 
-            os.path.join(
+        python_candidates = []
 
-                runtime_root,
+        if platform.system() == "Windows":
 
-                "python",
+          python_candidates = [
 
-                "python.exe"
+          os.path.join(runtime_root, "python", "python.exe"),
 
-            ),
+          os.path.join(runtime_root, "system", "python", "python.exe"),
 
-            os.path.join(
+          os.path.join(runtime_root, "venv", "Scripts", "python.exe"),
 
-                runtime_root,
-
-                "system",
-
-                "python",
-
-                "python.exe"
-
-            ),
-
-            os.path.join(
-
-                runtime_root,
-
-                "venv",
-
-                "Scripts",
-
-                "python.exe"
-
-            ),
-
-            os.path.join(
-
-                runtime_root,
-
-                ".venv",
-
-                "Scripts",
-
-                "python.exe"
-
-            ),
-
+          os.path.join(runtime_root, ".venv", "Scripts", "python.exe"),
         ]
 
+        else:
+
+          current_python = sys.executable
+
+          if current_python:
+            python_candidates.append(current_python)
+
+          python3 = shutil.which("python3")
+          if python3:
+            python_candidates.append(python3)
+
+          python = shutil.which("python")
+          if python:
+            python_candidates.append(python)
+
+
+
+        # Search for an existing Python executable
         for path in python_candidates:
 
-            if os.path.exists(path):
+          if os.path.exists(path):
 
-                env.python_executable = path
+           env.python_executable = path
 
-                break
+           break
+
+          # Fallback to the currently running Python
+        if env.python_executable == "":
+
+           env.python_executable = sys.executable
+
+
+
+
+
+
+
+
 
         
     # demo_gradio
@@ -544,6 +545,14 @@ class MultiKeyAdapter:
 
 
     def launch_runtime(self, env):
+
+
+
+     print()
+     print("Executable :", repr(env.python_executable))
+     print("Script     :", repr(env.demo_gradio))
+     print("WorkingDir :", repr(env.working_directory))
+     print()
 
      print()
 
