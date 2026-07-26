@@ -1,3 +1,31 @@
+import os
+import sys
+
+print("cwd       :", os.getcwd())
+print("sys.path0 :", sys.path[0])
+print("argv0     :", sys.argv[0])
+print()
+
+
+import os
+from huggingface_hub import constants
+
+print()
+print("========== HF Cache ==========")
+print("HF_HOME                :", os.environ.get("HF_HOME"))
+print("HF_HUB_CACHE           :", os.environ.get("HF_HUB_CACHE"))
+print("HUGGINGFACE_HUB_CACHE  :", os.environ.get("HUGGINGFACE_HUB_CACHE"))
+print("Resolved HF_HUB_CACHE  :", constants.HF_HUB_CACHE)
+print("==============================")
+print()
+
+
+
+
+
+
+
+
 import gc
 from diffusers_helper.hf_login import login
 
@@ -62,8 +90,12 @@ image_encoder = SiglipVisionModel.from_pretrained("lllyasviel/flux_redux_bfl", s
 
 def load_transfomer():
     print("Loading transformer ...")
-    transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained('lllyasviel/FramePackI2V_HY', torch_dtype=torch.bfloat16).cpu()
-    #transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained(f"{os.environ['HF_HOME']}/hub/models--lllyasviel--FramePackI2V_HY/snapshots/86cef4396041b6002c957852daac4c91aaa47c79", torch_dtype=torch.bfloat16).cpu()
+    #transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained('lllyasviel/FramePackI2V_HY', torch_dtype=torch.bfloat16).cpu()
+    # Local snapshot version (enable)
+    transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained(
+     f"{os.environ['HF_HOME']}/hub/models--lllyasviel--FramePackI2V_HY/snapshots/86cef4396041b6002c957852daac4c91aaa47c79",
+     torch_dtype=torch.bfloat16
+     ).cpu()
     transformer.eval()
     transformer.high_quality_fp32_output_for_inference = True
     print("transformer.high_quality_fp32_output_for_inference = True")
@@ -1262,6 +1294,12 @@ def worker(
 
         total_generated_latent_frames = 0
 
+        # ===========================================
+        # POC : Rolling Anchor Latent
+        # ===========================================
+
+        current_anchor_latent = start_latent
+
 
 
         
@@ -1477,13 +1515,25 @@ def worker(
             # ==========================================================
 
             clean_latents = torch.cat(
-            [
-              clean_latents_pre,
-              clean_latents_post
-            ],
-            dim=2
+             [
+             clean_latents_pre,
+             clean_latents_post
+             ],
+             dim=2
             )
 
+
+            print("\n========================================")
+            print("POC-2 : Expanded Clean Latents")
+            print("========================================")
+            print("Anchor :", tuple(current_anchor_latent.shape))
+            print("Start  :", tuple(clean_latents_pre.shape))
+            print("End    :", tuple(clean_latents_post.shape))
+            print("Final  :", tuple(clean_latents.shape))
+
+
+
+        
 
             print()
 
@@ -1620,6 +1670,36 @@ def worker(
             print("End Keyframe    :", runtime_segment.end_index)
             print()
 
+
+
+
+
+
+            print("\n========================================")
+            print("POC-3 : Scheduler Input")
+            print("========================================")
+
+            print("clean_latent_indices")
+            print(clean_latent_indices)
+
+            print()
+
+            print("latent_indices")
+            print(latent_indices)
+
+            print()
+
+            print("Rolling Anchor Shape")
+            print(current_anchor_latent.shape)
+
+            print()
+
+            print("clean_latents Shape")
+            print(clean_latents.shape)
+
+
+
+
             
 
             generated_latents = sample_hunyuan(
@@ -1653,10 +1733,22 @@ def worker(
                 callback=callback,
             )
 
+            # ===========================================
+            # POC : Update Rolling Anchor
+            # ===========================================
+
+            current_anchor_latent = generated_latents[:, :, -1:].detach().clone()
+
+            print(
+             "[Rolling Anchor]",
+              tuple(current_anchor_latent.shape)
+             )
+
+
             print(f"Encoding {'final' if is_last_section else 'intermediate'} output video {job_id}.mp4 ...")
 
             if is_last_section:
-                generated_latents = torch.cat([start_latent.to(generated_latents), generated_latents], dim=2)
+                generated_latents = torch.cat([current_anchor_latent.to(generated_latents), generated_latents], dim=2)
 
             total_generated_latent_frames += int(generated_latents.shape[2])
             history_latents = torch.cat([generated_latents.to(history_latents), history_latents], dim=2)
@@ -1706,6 +1798,16 @@ def worker(
                 overlapped_frames = latent_window_size * 4 - 3
 
                 current_pixels = vae_decode(real_history_latents[:, :, :section_latent_frames], vae).cpu()
+
+                print()
+                print("===== VAE Decode Info =====")
+                print("Shape :", tuple(current_pixels.shape))
+                print("Min   :", float(current_pixels.min()))
+                print("Max   :", float(current_pixels.max()))
+                print("Dtype :", current_pixels.dtype)
+                print("===========================")
+                print()
+                
                 history_pixels = soft_append_bcthw(current_pixels, history_pixels, overlapped_frames)
 
             if not high_vram:

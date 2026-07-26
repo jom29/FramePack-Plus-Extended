@@ -547,64 +547,51 @@ class MultiKeyAdapter:
     def launch_runtime(self, env):
 
 
+
      print()
      print("Executable :", repr(env.python_executable))
      print("Script     :", repr(env.demo_gradio))
      print("WorkingDir :", repr(env.working_directory))
      print()
 
+     print()
+
      print("========================================")
      print("Launching Runtime")
      print("========================================")
 
-     runtime_root = os.path.dirname(os.path.dirname(os.path.dirname(env.python_executable)))
-     system_dir = os.path.join(runtime_root, "system")
-
-     proc_env = os.environ.copy()
-
-     hf_cache = os.path.join(runtime_root,"webui","hf_download")
-
-     proc_env["HF_HOME"] = hf_cache
-
-     proc_env["HF_HUB_CACHE"] = os.path.join(hf_cache,"hub")
-
-     proc_env["HUGGINGFACE_HUB_CACHE"] = os.path.join(hf_cache,"hub")
-
-     proc_env["PATH"] = (
-         os.path.join(system_dir, "git", "bin")
-         + ";"
-         + os.path.join(system_dir, "python")
-         + ";"
-         + os.path.join(system_dir, "python", "Scripts")
-         + ";"
-         + proc_env.get("PATH", "")
-     )
-
-     proc_env["SKIP_VENV"] = "1"
-     proc_env["PY_LIBS"] = os.path.join(system_dir, "python", "Lib") + ";" + os.path.join(system_dir, "python", "Lib", "site-packages")
-     proc_env["PY_PIP"] = os.path.join(system_dir, "python", "Scripts")
-     proc_env["PIP_INSTALLER_LOCATION"] = os.path.join(system_dir, "python", "get-pip.py")
-
      self.process = subprocess.Popen(
-         [
-             env.python_executable,
-             env.demo_gradio,
-             "--server",
-             "127.0.0.1",
-             "--port",
-             "17861",
-         ],
-         cwd=env.working_directory,
-         env=proc_env
+
+     [
+
+        env.python_executable,
+
+        env.demo_gradio,
+
+        "--server",
+
+        "127.0.0.1",
+
+        "--port",
+
+        "17861"
+
+     ],
+
+     cwd=env.working_directory
+
      )
 
      print()
+
      print("PID :", self.process.pid)
 
      import time
+
      time.sleep(3)
 
      print()
+
      print("========================================")
      print("Runtime Status")
      print("========================================")
@@ -614,7 +601,7 @@ class MultiKeyAdapter:
        print("Runtime is still running.")
        print("Milestone 4 PASSED.")
        return
-
+     
      else:
 
        print("Runtime exited immediately.")
@@ -623,3 +610,5 @@ class MultiKeyAdapter:
        print()
 
        print("============= Runtime Log =============")
+
+     
