@@ -1,31 +1,3 @@
-import os
-import sys
-
-print("cwd       :", os.getcwd())
-print("sys.path0 :", sys.path[0])
-print("argv0     :", sys.argv[0])
-print()
-
-
-import os
-from huggingface_hub import constants
-
-print()
-print("========== HF Cache ==========")
-print("HF_HOME                :", os.environ.get("HF_HOME"))
-print("HF_HUB_CACHE           :", os.environ.get("HF_HUB_CACHE"))
-print("HUGGINGFACE_HUB_CACHE  :", os.environ.get("HUGGINGFACE_HUB_CACHE"))
-print("Resolved HF_HUB_CACHE  :", constants.HF_HUB_CACHE)
-print("==============================")
-print()
-
-
-
-
-
-
-
-
 import gc
 from diffusers_helper.hf_login import login
 
@@ -90,12 +62,8 @@ image_encoder = SiglipVisionModel.from_pretrained("lllyasviel/flux_redux_bfl", s
 
 def load_transfomer():
     print("Loading transformer ...")
-    #transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained('lllyasviel/FramePackI2V_HY', torch_dtype=torch.bfloat16).cpu()
-    # Local snapshot version (enable)
-    transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained(
-     f"{os.environ['HF_HOME']}/hub/models--lllyasviel--FramePackI2V_HY/snapshots/86cef4396041b6002c957852daac4c91aaa47c79",
-     torch_dtype=torch.bfloat16
-     ).cpu()
+    transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained('lllyasviel/FramePackI2V_HY', torch_dtype=torch.bfloat16).cpu()
+    #transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained(f"{os.environ['HF_HOME']}/hub/models--lllyasviel--FramePackI2V_HY/snapshots/86cef4396041b6002c957852daac4c91aaa47c79", torch_dtype=torch.bfloat16).cpu()
     transformer.eval()
     transformer.high_quality_fp32_output_for_inference = True
     print("transformer.high_quality_fp32_output_for_inference = True")
@@ -160,317 +128,11 @@ def render_pipeline():
     print("Pipeline Entry")
 
 
-# ==========================================================
-# M6 : Runtime State
-# ==========================================================
-
-class RuntimeState:
-
-    def __init__(self):
-
-        # Pipeline Collections
-        self.frames = []
-        self.processed_frames = []
-        self.tensors = []
-        self.latents = []
-        self.segment_collection = []
-
-
-
-
-        # Runtime Components
-        self.conditioning = {}
-        self.resources = {}
-        self.timeline = {}
-        self.compatibility = {}
-
-
-
-      # ==========================================================
-      # M7 Experimental Runtime
-      # ==========================================================
-
-        self.experimental = {
-
-          "latent_collection": None,
- 
-          "start_index": 0,
-
-         "end_index": 1
-
-          }
-
-
-# ==========================================================
-# Segment Runtime
-# One FramePack generation session
-# ==========================================================
-
-class SegmentRuntime:
-
-    def __init__(self):
-
-        self.segment_index = 0
-
-        self.start_index = 0
-        self.end_index = 1
-
-        self.start_frame = None
-        self.end_frame = None
-
-        self.start_tensor = None
-        self.end_tensor = None
-
-        self.start_latent = None
-        self.end_latent = None
-
-        # ============================
-        # Runtime State
-        # ============================
-
-        self.generated_latents = None
-
-        self.history_latents = None
-        self.history_pixels = None
-
-        self.total_generated_latent_frames = 0
-
-        self.clean_latent_indices = None
-
-        self.history_before = None
-        self.history_after = None
-
-
-
-
-
-
-# ==========================================================
-# M8.1 : Timeline Segment
-# ==========================================================
-
-class TimelineSegment:
-
-    def __init__(
-        self,
-        segment_index,
-        start_keyframe,
-        end_keyframe,
-        first_section=None,
-        last_section=None
-    ):
-
-        self.segment_index = segment_index
-
-        self.start_keyframe = start_keyframe
-        self.end_keyframe = end_keyframe
-
-        self.first_section = first_section
-        self.last_section = last_section
-
-
-
-# ==========================================================
-# M8.1 : Timeline Planner
-# ==========================================================
-
-class TimelinePlanner:
-
-    def __init__(
-        self,
-        total_keyframes
-    ):
-
-        self.total_keyframes = total_keyframes
-
-        # Timeline Graph
-        self.segments = []
-
-        # Section Ownership Table
-        self.section_ownership = []
-
-        # Build timeline graph only
-        self.build_segments()
-
-    # ==========================================================
-    # M8.1
-    # Timeline Graph
-    # ==========================================================
-
-    def build_segments(self):
-
-        if self.total_keyframes < 2:
-            return
-
-        total_segments = self.total_keyframes - 1
-
-        for segment_index in range(total_segments):
-
-            segment = TimelineSegment(
-
-                segment_index=segment_index,
-
-                start_keyframe=segment_index,
-
-                end_keyframe=segment_index + 1,
-
-                first_section=None,
-
-                last_section=None
-
-            )
-
-            self.segments.append(segment)
-
-    # ==========================================================
-    # M8.2
-    # Section Ownership
-    # ==========================================================
-
-    def build_section_ownership(
-        self,
-        total_sections
-    ):
-
-        self.section_ownership.clear()
-
-        if len(self.segments) == 0:
-            return
-
-        total_segments = len(self.segments)
-
-        sections_per_segment = max(
-            1,
-            total_sections // total_segments
-        )
-
-        current_segment = 0
-
-        for section in range(total_sections):
-
-            self.section_ownership.append(current_segment)
-
-            if (
-                (section + 1) % sections_per_segment == 0
-                and current_segment < total_segments - 1
-            ):
-                current_segment += 1
-
-    def get_active_segment(
-        self,
-        section_index
-    ):
-
-        if len(self.section_ownership) == 0:
-            return None
-
-        if section_index >= len(self.section_ownership):
-            section_index = len(self.section_ownership) - 1
-
-        segment_index = self.section_ownership[section_index]
-
-        return self.segments[segment_index]
-
-    def print_section_ownership(self):
-
-      print()
-
-      print("========================================")
-      print("M8.2 : Section Ownership")
-      print("========================================")
-      print()
-
-      print("Total Keyframes :", self.total_keyframes)
-      print("Total Segments  :", len(self.segments))
-      print("Total Sections  :", len(self.section_ownership))
-      print()
-
-      print("----------------------------------------")
-      print("Timeline Graph")
-      print("----------------------------------------")
-
-      for segment in self.segments:
-
-        print(
-            f"Segment {segment.segment_index}"
-        )
-
-        print(
-            f"Anchor Pair : "
-            f"{segment.start_keyframe} -> {segment.end_keyframe}"
-        )
-
-        print()
-
-      print("----------------------------------------")
-      print("Ownership Table")
-      print("----------------------------------------")
-
-      for section_index, segment_index in enumerate(self.section_ownership):
-
-        segment = self.segments[segment_index]
-
-        print(
-
-            f"Section {section_index:02d}"
-
-            f"  -->  "
-
-            f"Segment {segment.segment_index}"
-
-            f"  ({segment.start_keyframe}"
-
-            f" -> "
-
-            f"{segment.end_keyframe})"
-
-        )
-
-      print()
-
-      print("========================================")
-      print("M8.2 Completed")
-      print("========================================")
-      print()
-
-
-
-
-
-
-
 
 
 
 @torch.no_grad()
-def worker(
-    frame_collection,
-    prompt,
-    n_prompt,
-    seed,
-    total_second_length,
-    latent_window_size,
-    steps,
-    cfg,
-    gs,
-    rs,
-    gpu_memory_preservation,
-    use_teacache,
-    mp4_crf,
-    resolution,
-    teacache_threshold,
-    lora_file,
-    lora_multiplier,
-    fp8_optimization
-   ):
-
-    # ==========================================================
-    # M6 : Runtime State
-    # ==========================================================
-
-    runtime = RuntimeState()
-
-  
+def worker(input_image, end_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, resolution, teacache_threshold, lora_file, lora_multiplier, fp8_optimization):
     
     print()
     print("RUNNING FILE:")
@@ -493,211 +155,10 @@ def worker(
 
 
 
-
-
-
-   # --------------------------------------------------
-   # M5.2 : Runtime Frame Collection
-   # --------------------------------------------------
-
-    from PIL import Image
-    import numpy as np
-
-    runtime.frames.clear()
-
-    for frame in frame_collection:
-
-      print("Frame Type :", type(frame))
-
-      image = Image.open(frame["path"]).convert("RGB")
-
-      image = np.array(image)
-
-      runtime.frames.append(image)
-
-
-
-
-    print()
-    print("========================================")
-    print("M5.2 : Runtime Frame Collection")
-    print("========================================")
-    print()
-
-    print(f"Total Frames : {len(runtime.frames)}")
-    print()
-
-    for index, frame in enumerate(runtime.frames):
-
-     print(f"Frame {index}")
-
-     if frame is None:
-        print("Status : None")
-     else:
-        print("Shape  :", frame.shape)
-        print("DType  :", frame.dtype)
-
-     print()
-
-
-
-
-
-
-
     global transformer, previous_lora_file, previous_lora_multiplier, previous_fp8_optimization
     start_time = time.time()
     
     render_pipeline()
-
-
-
-    # ==========================================================
-    # M5.3 : Processed Frame Collection
-    # ==========================================================
-    # Goal:
-    #   Convert every frame inside frame_collection into a
-    #   normalized image using the same preprocessing pipeline.
-    #
-    # This does NOT replace FramePack's original variables yet.
-    # It is only building a new collection for verification.
-    # ==========================================================
-    
-    processed_frame_collection = []
-    
-    for frame in runtime.frames:
-    
-        # Original frame size
-          H, W, C = frame.shape
-    
-          # Find the nearest bucket resolution
-          height, width = find_nearest_bucket(
-          H,
-          W,
-          resolution=resolution
-          )
-    
-          # Resize and crop the frame
-          processed = resize_and_center_crop(
-            frame,
-            target_width=width,
-            target_height=height
-            )
-    
-          # Store the processed frame
-          processed_frame_collection.append(processed)
-    
-    
-     # ==========================================================
-     # Verification Logs
-     # ==========================================================
-    
-    print()
-    print("========================================")
-    print("M5.3 : Processed Frame Collection")
-    print("========================================")
-    print()
-    
-    print(f"Total Processed Frames : {len(processed_frame_collection)}")
-    print()
-    
-    for index, processed in enumerate(processed_frame_collection):
-    
-        print(f"Processed Frame {index}")
-    
-        print("Shape :", processed.shape)
-        print("DType :", processed.dtype)
-    
-        print()
-    
-
-
-
-
-
-
-
-
-     # ==========================================================
-     # M5.4 : Tensor Collection
-     # ==========================================================
-     #
-     # Goal:
-     # Convert every processed frame into the tensor format
-     # expected by the FramePack runtime.
-     #
-     # This does NOT replace FramePack's original tensor
-     # variables yet. It only builds a new tensor collection
-     # for verification.
-     #
-     # ==========================================================
-      
-    tensor_collection = []
-      
-    for processed in processed_frame_collection:
-      
-      # ------------------------------------------------------
-      # Convert NumPy image -> Float Tensor
-      # ------------------------------------------------------
-        tensor = torch.from_numpy(processed).float()
-      
-             # ------------------------------------------------------
-             # Normalize pixel values
-             # Range:
-             #     0   -> -1
-             #     255 ->  1
-             # ------------------------------------------------------
-        tensor = tensor / 127.5 - 1
-      
-               # ------------------------------------------------------
-               # Rearrange dimensions
-               #
-               # From:
-               #     (H, W, C)
-               #
-               # To:
-               #     (1, C, H, W, 1)
-               # ------------------------------------------------------
-        tensor = tensor.permute(2, 0, 1)[None, :, None]
-      
-               # ------------------------------------------------------
-               # Store tensor
-               # ------------------------------------------------------
-        tensor_collection.append(tensor)
-      
-      
-    # ==========================================================
-    # Verification Logs
-    # ==========================================================
-      
-    print()
-    print("========================================")
-    print("M5.4 : Tensor Collection")
-    print("========================================")
-    print()
-      
-    print(f"Total Tensors : {len(tensor_collection)}")
-    print()
-      
-    for index, tensor in enumerate(tensor_collection):
-      
-        print(f"Tensor {index}")
-      
-        print("Shape :", tuple(tensor.shape))
-        print("DType :", tensor.dtype)
-        print("Device:", tensor.device)
-      
-        print("Min   :", float(tensor.min()))
-        print("Max   :", float(tensor.max()))
-      
-        print()
-      
-
-
-
-
-
-
 
    
 
@@ -710,93 +171,6 @@ def worker(
 
     total_latent_sections = (total_second_length * 30) / (latent_window_size * 4)
     total_latent_sections = int(max(round(total_latent_sections), 1))
-
-    
-
-
-
-    print()
-
-    print("========================================")
-    print("M8.2A : Scheduler Characteristics")
-    print("========================================")
-    print()
-
-    print("Duration (Seconds) :", total_second_length)
-
-    print("Latent Window Size :", latent_window_size)
-
-    print("Total Scheduler Sections :", total_latent_sections)
-
-    print()
-
-
-
-
-
-    # ==========================================================
-    # M8.1 : Timeline Planner
-    # ==========================================================
-
-    planner = TimelinePlanner(
-      total_keyframes=len(runtime.frames)
-    )
-
-
-
-    planner.build_section_ownership(
-    total_latent_sections
-    )
-
-    planner.print_section_ownership()
-
-
-
-    print()
-    print("========================================")
-    print("M8.1 : Timeline Planner")
-    print("========================================")
-    print()
-
-    print("Total Keyframes :", planner.total_keyframes)
-    print("Total Segments  :", len(planner.segments))
-    print()
-
-    for segment in planner.segments:
-
-      print(f"Segment {segment.segment_index}")
-
-      print(
-        f"Anchor Pair : {segment.start_keyframe} -> {segment.end_keyframe}"
-      )
-
-      print()
-
-
-
-    # ==========================================================
-    # M8.2
-    # Ownership Lookup
-    # ==========================================================
-
-    def get_active_segment(
-      self,
-      scheduler_window
-     ):
-
-       if len(self.section_ownership) == 0:
-         return None
-
-       if scheduler_window >= len(self.section_ownership):
-        scheduler_window = len(self.section_ownership) - 1
-
-        segment_index = self.section_ownership[scheduler_window]
-
-       return self.segments[segment_index]
-
-
-
-
 
     job_id = generate_timestamp()
     job_id = f'{job_id}_{resolution}_{seed}{"_teacache" if use_teacache else ""}'
@@ -830,44 +204,12 @@ def worker(
         llama_vec, llama_attention_mask = crop_or_pad_yield_mask(llama_vec, length=512)
         llama_vec_n, llama_attention_mask_n = crop_or_pad_yield_mask(llama_vec_n, length=512)
 
-
-          # Processing input image (start frame)
+        # Processing input image (start frame)
         stream.output_queue.push(('progress', (None, '', make_progress_bar_html(0, 'Processing start frame ...'))))
 
-        
-        
-
-
-        start_frame = runtime.frames[0]
-
-        H, W, C = start_frame.shape
-
-        height, width = find_nearest_bucket(
-        H,
-        W,
-        resolution=resolution
-       )
-
-        input_image_np = resize_and_center_crop(
-        start_frame,
-        target_width=width,
-        target_height=height
-        )
-
-
+        H, W, C = input_image.shape
         height, width = find_nearest_bucket(H, W, resolution=resolution)
-        input_image_np = resize_and_center_crop(
-        start_frame,
-        target_width=width,
-        target_height=height
-        )
-
-
-
-      
-
-
-
+        input_image_np = resize_and_center_crop(input_image, target_width=width, target_height=height)
 
         lora_text = ""
         if lora_file is not None:
@@ -892,56 +234,24 @@ def worker(
         if lora_file is not None:
             metadata.add_text("lora_file", str(os.path.basename(lora_file)))
             metadata.add_text("lora_multiplier", str(lora_multiplier))
-            #metadata.add_text("gpu_memory_preservation", str(gpu_memory_preservation))
-            Image.fromarray(input_image_np).save(os.path.join(outputs_folder, f'{job_id}.png'), pnginfo=metadata)
-
-
-
+        #metadata.add_text("gpu_memory_preservation", str(gpu_memory_preservation))
+        Image.fromarray(input_image_np).save(os.path.join(outputs_folder, f'{job_id}.png'), pnginfo=metadata)
         
         input_image_pt = torch.from_numpy(input_image_np).float() / 127.5 - 1
         input_image_pt = input_image_pt.permute(2, 0, 1)[None, :, None]
         
-
-
-       
-
-
-
-
         # Processing end image (if provided)
-
-        has_end_image = len(runtime.frames) > 1
-
+        has_end_image = end_image is not None
         if has_end_image:
-
-         stream.output_queue.push(
-         ('progress', (None, '', make_progress_bar_html(0, 'Processing end frame ...')))
-        )
-
-        end_frame = runtime.frames[-1]
-
-        H_end, W_end, C_end = end_frame.shape
-
-        end_image_np = resize_and_center_crop(
-         end_frame,
-         target_width=width,
-         target_height=height
-        )
-
-        Image.fromarray(end_image_np).save(
-         os.path.join(outputs_folder, f'{job_id}_end.png')
-        )
-
-        end_image_pt = torch.from_numpy(end_image_np).float() / 127.5 - 1
-
-        end_image_pt = end_image_pt.permute(2, 0, 1)[None, :, None]
-
-
-
-
-
-
-
+            stream.output_queue.push(('progress', (None, '', make_progress_bar_html(0, 'Processing end frame ...'))))
+            
+            H_end, W_end, C_end = end_image.shape
+            end_image_np = resize_and_center_crop(end_image, target_width=width, target_height=height)
+            
+            Image.fromarray(end_image_np).save(os.path.join(outputs_folder, f'{job_id}_end.png'))
+            
+            end_image_pt = torch.from_numpy(end_image_np).float() / 127.5 - 1
+            end_image_pt = end_image_pt.permute(2, 0, 1)[None, :, None]
 
         # VAE encoding
         stream.output_queue.push(('progress', (None, '', make_progress_bar_html(0, 'VAE encoding ...'))))
@@ -954,262 +264,9 @@ def worker(
        
         
 
-      # ==========================================================
-      # M5.5 : Latent Collection
-      # ==========================================================
-      #
-      # Goal:
-      # Convert every tensor inside tensor_collection into
-      # FramePack latent representations using the official
-      # vae_encode() helper.
-      #
-      # This does NOT replace FramePack's original latent
-      # variables yet.
-      #
-      # ==========================================================
+       
 
-        latent_collection = []
 
-        for tensor in tensor_collection:
-
-         latent = vae_encode(
-         tensor,
-         vae
-         )
-
-         latent_collection.append(latent)
-
-
-       # ==========================================================
-       # Verification Logs
-       # ==========================================================
-        print()
-        print("========================================")
-        print("M5.5 : Latent Collection")
-        print("========================================")
-        print()
-
-        print(f"Total Latents : {len(latent_collection)}")
-        print()
-
-        for index, latent in enumerate(latent_collection):
-
-          print(f"Latent {index}")
-
-          print("Shape :", tuple(latent.shape))
-          print("DType :", latent.dtype)
-          print("Device:", latent.device)
-
-          print("Min   :", float(latent.min()))
-          print("Max   :", float(latent.max()))
-
-          print()
-
-
-        # ==========================================================
-        # M7.1
-        # Experimental Runtime State
-        # ==========================================================
-
-        runtime.experimental["latent_collection"] = latent_collection
-
-        # ==========================================================
-        # Build Segment Runtime Collection
-        # ==========================================================
-
-        runtime.segment_collection.clear()
-
-        for i in range(len(latent_collection) - 1):
-
-           segment = SegmentRuntime()
-
-           segment.segment_index = i
-
-           segment.start_index = i
-           segment.end_index = i + 1
-
-           segment.start_frame = runtime.frames[i]
-           segment.end_frame = runtime.frames[i + 1]
-
-           segment.start_tensor = tensor_collection[i]
-           segment.end_tensor = tensor_collection[i + 1]
-
-           segment.start_latent = latent_collection[i]
-           segment.end_latent = latent_collection[i + 1]
-
-
-           segment.history_latents = torch.zeros(
-            size=(1, 16, 1 + 2 + 16, height // 8, width // 8),
-            dtype=torch.float32
-            ).cpu()
-
-           segment.history_pixels = None
-           segment.total_generated_latent_frames = 0
-
-            
-           segment.history_latents
-           segment.history_pixels
-           segment.total_generated_latent_frames
-           runtime.segment_collection.append(segment)
-
-
-        print()
-        print("========================================")
-        print("Segment Runtime Collection")
-        print("========================================")
-        print()
-
-        for segment in runtime.segment_collection:
-
-          print(f"Segment {segment.segment_index}")
-
-          print(f"Start : {segment.start_index}")
-
-          print(f"End   : {segment.end_index}")
-
-          print(tuple(segment.start_latent.shape))
-
-          print(tuple(segment.end_latent.shape))
-
-          print()
-
-
-
-        print()
-        print("========================================")
-        print("M7.1 : Experimental Runtime")
-        print("========================================")
-        print()
-
-        print("Runtime Latent Count :",
-        len(runtime.experimental["latent_collection"]))
-
-        print()
-
-        for index, latent in enumerate(runtime.experimental["latent_collection"]):
-
-           print(f"Latent Index {index}")
-
-           print("Shape :", tuple(latent.shape))
-
-           print()
-
-
-
-
-        # ==========================================================
-        # M5.5A : Compatibility Layer
-        # ==========================================================
-        #
-        # Goal:
-        # Bridge the new latent_collection with the original
-        # FramePack runtime.
-        #
-        # The original sampler still expects:
-        #
-        #     start_latent
-        #     end_latent
-        #
-        # These variables are recreated from the collection so
-        # the remaining FramePack pipeline continues to work.
-        # 
-        # NOTE:
-        # This is TEMPORARY.
-        #
-        # Future milestones will remove this bridge and allow
-        # the sampler to work directly with latent_collection.
-        #
-        # ==========================================================
-
-        print()
-        print("========================================")
-        print("M5.5A : Compatibility Layer")
-        print("========================================")
-        print()
-
-        # ----------------------------------------------------------
-        # M7.2 : Dynamic Latent Selection
-        # ----------------------------------------------------------
-
-        start_index = runtime.experimental["start_index"]
-
-        if len(latent_collection) > 1:
-          end_index = runtime.experimental["end_index"]
-        else:
-          end_index = None
-
-        start_latent = latent_collection[start_index]
-
-        if end_index is not None:
-            end_latent = latent_collection[end_index]
-        else:
-            end_latent = None
-
-
-
-
-        print()
-        print("========================================")
-        print("M8.3 : Planner Controlled Latent Selection")
-        print("========================================")
-        print()
-
-        print("Assigned start_index :", start_index)
-        print("Assigned end_index   :", end_index)
-        print()
-
-        print("Start Latent Shape :", tuple(start_latent.shape))
-        print("End Latent Shape   :", tuple(end_latent.shape))
-        print()
-
-
-
-
-        print()
-        print("========================================")
-        print("M7.2 : Dynamic Latent Selection")
-        print("========================================")
-        print()
-
-        print("Selected Start Index :", start_index)
-
-        if end_index is not None:
-            print("Selected End Index   :", end_index)
-        else:
-            print("Selected End Index   : None")
-
-        print()
-
-        print("Selected Start Latent")
-        print("Shape :", tuple(start_latent.shape))
-        print()
-
-        if end_latent is not None:
-            print("Selected End Latent")
-            print("Shape :", tuple(end_latent.shape))
-            print()
-        else:
-            print("Selected End Latent : None")
-            print()
-
-        # ----------------------------------------------------------
-        # Compatibility Layer
-        # ----------------------------------------------------------
-
-        print("Start Latent Assigned")
-        print("Shape :", tuple(start_latent.shape))
-        print()
-
-        if end_latent is not None:
-
-            print("End Latent Assigned")
-            print("Shape :", tuple(end_latent.shape))
-            print()
-
-        else:
-
-            print("No End Latent")
-            print()
 
         # CLIP Vision
         stream.output_queue.push(('progress', (None, '', make_progress_bar_html(0, 'CLIP Vision encoding ...'))))
@@ -1281,28 +338,14 @@ def worker(
                 transformer.to(gpu)
         # Sampling
         stream.output_queue.push(('progress', (None, '', make_progress_bar_html(0, 'Start sampling ...'))))
-        rnd = torch.Generator("cpu").manual_seed(seed)
 
+        rnd = torch.Generator("cpu").manual_seed(seed)
         num_frames = latent_window_size * 4 - 3
 
-        history_latents = torch.zeros(
-        size=(1, 16, 1 + 2 + 16, height // 8, width // 8),
-        dtype=torch.float32
-        ).cpu()
-
+        history_latents = torch.zeros(size=(1, 16, 1 + 2 + 16, height // 8, width // 8), dtype=torch.float32).cpu()
         history_pixels = None
-
         total_generated_latent_frames = 0
 
-        # ===========================================
-        # POC : Rolling Anchor Latent
-        # ===========================================
-
-        current_anchor_latent = start_latent
-
-
-
-        
         latent_paddings = list(reversed(range(total_latent_sections)))
 
         if total_latent_sections > 4:
@@ -1314,65 +357,11 @@ def worker(
             #latent_paddings = list(reversed(range(total_latent_sections)))
         
         current_section = total_latent_sections
-        timeline_iteration = 0
         
-         
-        print("latent_paddings =", latent_paddings)
-
         for latent_padding in latent_paddings:
             is_last_section = latent_padding == 0
             is_first_section = latent_padding == latent_paddings[0]
             latent_padding_size = latent_padding * latent_window_size
-
-
-            print(f"=== ENTER LOOP : latent_padding={latent_padding} ===")
-
-            print("Before planner lookup")
-
-
-
-            active_segment = planner.get_active_segment(
-               timeline_iteration
-               )
-
-
-
-           # ==========================================================
-           # Retrieve Segment Runtime
-           # ==========================================================
-
-            runtime_segment = runtime.segment_collection[
-             active_segment.segment_index
-           ]
-
-           
-            
-
-         
-
-            print()
-            print("========================================")
-            print("Segment Runtime Selected")
-            print("========================================")
-
-            print("Segment :", runtime_segment.segment_index)
-
-            print("Start :", runtime_segment.start_index)
-
-            print("End   :", runtime_segment.end_index)
-
-            print()
-
-
-           
-            print("Runtime Segment :", runtime_segment.segment_index)
-            print("Start Latent :", id(runtime_segment.start_latent))
-            print("End Latent   :", id(runtime_segment.end_latent))
-
-
-
-
-
 
             if stream.input_queue.top() == 'end':
                 stream.output_queue.push(('end', None))
@@ -1381,252 +370,17 @@ def worker(
             print(f'latent_padding_size = {latent_padding_size}, is_last_section = {is_last_section}, is_first_section = {is_first_section}')
 
             indices = torch.arange(0, sum([1, latent_padding_size, latent_window_size, 1, 2, 16])).unsqueeze(0)
-            clean_latent_indices_pre, blank_indices, latent_indices, clean_latent_indices_post, clean_latent_2x_indices, clean_latent_4x_indices = indices.split([1, latent_padding_size,             latent_window_size, 1, 2, 16], dim=1)
+            clean_latent_indices_pre, blank_indices, latent_indices, clean_latent_indices_post, clean_latent_2x_indices, clean_latent_4x_indices = indices.split([1, latent_padding_size, latent_window_size, 1, 2, 16], dim=1)
             clean_latent_indices = torch.cat([clean_latent_indices_pre, clean_latent_indices_post], dim=1)
 
-
-            # ==========================================================
-            # POC-1 : Three Keyframe Conditioning
-            # Expand conditioning indices
-            # ==========================================================
-
-            clean_latent_indices = torch.cat(
-            [
-              clean_latent_indices_pre,
-              clean_latent_indices_post
-            ],
-            dim=1
-            )
-
-           
-            print("========================================")
-            print("POC-1 : Latent Index")
-            print("========================================")
-
-            print(clean_latent_indices)
-            print(clean_latent_indices.shape)
-
-
-
-            #INVESTIGATIONS
-
-            print()
-
-            print("========================================")
-            print("M7.3 : clean_latent_indices Investigation")
-            print("========================================")
-            print()
-
-            print("clean_latent_indices_pre")
-            print("Shape :", tuple(clean_latent_indices_pre.shape))
-            print(clean_latent_indices_pre)
-            print()
-
-            print("clean_latent_indices_post")
-            print("Shape :", tuple(clean_latent_indices_post.shape))
-            print(clean_latent_indices_post)
-            print()
-
-            print("clean_latent_indices")
-            print("Shape :", tuple(clean_latent_indices.shape))
-            print(clean_latent_indices)
-            print()
-
-            print("latent_indices")
-            print("Shape :", tuple(latent_indices.shape))
-            print(latent_indices)
-            print()
-
-
-
-
-            planner_start_latent = runtime_segment.start_latent
-            planner_end_latent = runtime_segment.end_latent
-
-
-
-            print()
-            print("========================================")
-            print("M8.3 : Planner Latent Lookup")
-            print("========================================")
-            print()
-
-            print("Planner Start :", active_segment.start_keyframe)
-            print("Planner End   :", active_segment.end_keyframe)
-            print()
-
-            print("Planner Start Shape :", tuple(planner_start_latent.shape))
-            print("Planner End Shape   :", tuple(planner_end_latent.shape))
-            print()
-
-
-
-
-
-
-
-
-
-
-            planner_start_latent = runtime_segment.start_latent
-
-            clean_latents_pre = planner_start_latent.to(history_latents)
-
-            
+            clean_latents_pre = start_latent.to(history_latents)
             clean_latents_post, clean_latents_2x, clean_latents_4x = history_latents[:, :, :1 + 2 + 16, :, :].split([1, 2, 16], dim=2)
-
-
-            # Replace only the primary post latent
-            clean_latents_post = planner_end_latent.to(history_latents)
-
-            print()
-
-            print("========================================")
-            print("M8.3A : Dynamic Start Conditioning")
-            print("========================================")
-            print()
-
-            print("Timeline Iteration :", timeline_iteration)
-
-            print("Planner Start Index :", active_segment.start_keyframe)
-
-            print("Planner Start Latent Shape :",
-             tuple(planner_start_latent.shape))
-
-            print()
-
-
-
-            # ==========================================================
-            # POC-1 : Three Keyframe Conditioning
-            # ==========================================================
-
-            planner_end_latent = runtime_segment.end_latent
-
-            planner_end_latent = planner_end_latent.to(history_latents)
-
-            # ==========================================================
-            # Planner Conditioning
-            # ==========================================================
-            # The conditioning packet now consists only of the current
-            # segment's start and end keyframes.
-            # History remains available through clean_latents_2x and
-            # clean_latents_4x.
-            # ==========================================================
-
-            clean_latents = torch.cat(
-             [
-             clean_latents_pre,
-             clean_latents_post
-             ],
-             dim=2
-            )
-
-
-            print("\n========================================")
-            print("POC-2 : Expanded Clean Latents")
-            print("========================================")
-            print("Anchor :", tuple(current_anchor_latent.shape))
-            print("Start  :", tuple(clean_latents_pre.shape))
-            print("End    :", tuple(clean_latents_post.shape))
-            print("Final  :", tuple(clean_latents.shape))
-
-
-
-        
-
-            print()
-
-            print("========================================")
-            print("M7.3 : clean_latents_4x Investigation")
-            print("========================================")
-            print()
-
-            print("clean_latents_4x")
-
-            print("Shape :", tuple(clean_latents_4x.shape))
-            print("DType :", clean_latents_4x.dtype)
-            print("Device:", clean_latents_4x.device)
-
-            print()
-
-            print("Temporal Dimension")
-
-            print("clean_latents_4x :", clean_latents_4x.shape[2])
-
-            print()
-
-            print("Min :", float(clean_latents_4x.min()))
-            print("Max :", float(clean_latents_4x.max()))
-
-            print()
-
-
-
-
-
-
-
-
-            #CLEAN LATENTS 2X INVESTIGATIONS
-            print()
-
-            print("========================================")
-            print("M7.3 : clean_latents_2x Investigation")
-            print("========================================")
-            print()
-
-            print("clean_latents_2x")
-
-            print("Shape :", tuple(clean_latents_2x.shape))
-            print("DType :", clean_latents_2x.dtype)
-            print("Device:", clean_latents_2x.device)
-
-            print()
-
-            print("Temporal Dimension")
-
-            print("clean_latents_2x :", clean_latents_2x.shape[2])
-
-            print()
-
-            print("Min :", float(clean_latents_2x.min()))
-            print("Max :", float(clean_latents_2x.max()))
-
-            print()
-
-
-
-
-
-
-         
-
-
-
-             #CLEAN LATENT INVESTIGATION
-            print("M7.3 : clean_latents Investigation")
-            print("========================================")
-            print()
-                
-            print("clean_latents_pre")
-            print("Shape :", tuple(clean_latents_pre.shape))
-            print()
-                 
-            print("clean_latents_post")
-            print("Shape :", tuple(clean_latents_post.shape))
-            print()
-                
-            print("clean_latents")
-            print("Shape :", tuple(clean_latents.shape))
-            print()
-                
-            print("Temporal Dimension")
-            print("clean_latents_pre :", clean_latents_pre.shape[2])
-            print("clean_latents_post:", clean_latents_post.shape[2])
-            print("clean_latents     :", clean_latents.shape[2])
-            print()
-
+            clean_latents = torch.cat([clean_latents_pre, clean_latents_post], dim=2)
+            
+            # Use end image latent for the first section if provided
+            if has_end_image and is_first_section:
+                clean_latents_post = end_latent.to(history_latents)
+                clean_latents = torch.cat([clean_latents_pre, clean_latents_post], dim=2)
 
             if not high_vram:
                 unload_complete_models()
@@ -1656,51 +410,6 @@ def worker(
                 desc = f'Total progress {percentage}%, elapsed {elapsed_time // 60}:{elapsed_time % 60:02}, time_left {time_left // 60}:{time_left % 60:02}, Section {total_latent_sections - current_section + 1}/{total_latent_sections}<br/>Total generated frames: {int(max(0, total_generated_latent_frames * 4 - 3))}, Video length: {max(0, (total_generated_latent_frames * 4 - 3) / 30) :.2f} seconds.'
                 stream.output_queue.push(('progress', (preview, desc, make_progress_bar_html(percentage, hint))))
                 return
-
-
-            print()
-            print("================================")
-            print("Timeline Debug")
-            print("================================")
-            print("Iteration :", timeline_iteration)
-            print("Section   :", current_section)
-            print("Padding   :", latent_padding)
-            print("Planner Segment :", runtime_segment.segment_index)
-            print("Start Keyframe  :", runtime_segment.start_index)
-            print("End Keyframe    :", runtime_segment.end_index)
-            print()
-
-
-
-
-
-
-            print("\n========================================")
-            print("POC-3 : Scheduler Input")
-            print("========================================")
-
-            print("clean_latent_indices")
-            print(clean_latent_indices)
-
-            print()
-
-            print("latent_indices")
-            print(latent_indices)
-
-            print()
-
-            print("Rolling Anchor Shape")
-            print(current_anchor_latent.shape)
-
-            print()
-
-            print("clean_latents Shape")
-            print(clean_latents.shape)
-
-
-
-
-            
 
             generated_latents = sample_hunyuan(
                 transformer=transformer,
@@ -1733,57 +442,13 @@ def worker(
                 callback=callback,
             )
 
-            # ===========================================
-            # POC : Update Rolling Anchor
-            # ===========================================
-
-            current_anchor_latent = generated_latents[:, :, -1:].detach().clone()
-
-            print(
-             "[Rolling Anchor]",
-              tuple(current_anchor_latent.shape)
-             )
-
-
             print(f"Encoding {'final' if is_last_section else 'intermediate'} output video {job_id}.mp4 ...")
 
             if is_last_section:
-                generated_latents = torch.cat([current_anchor_latent.to(generated_latents), generated_latents], dim=2)
+                generated_latents = torch.cat([start_latent.to(generated_latents), generated_latents], dim=2)
 
             total_generated_latent_frames += int(generated_latents.shape[2])
             history_latents = torch.cat([generated_latents.to(history_latents), history_latents], dim=2)
-
-
-            print()
-            print("========================================")
-            print("M8.4A : History Latent Evolution")
-            print("========================================")
-            print()
-
-            print("Timeline Iteration :", timeline_iteration)
-
-            print()
-
-            print("Generated Latents")
-            print(tuple(generated_latents.shape))
-
-            print()
-
-            print("History Latents")
-            print(tuple(history_latents.shape))
-
-            print()
-
-            print("History Temporal Length :", history_latents.shape[2])
-
-            print()
-
-            print("History Min :", float(history_latents.min()))
-            print("History Max :", float(history_latents.max()))
-
-            print()
-
-            
 
             if not high_vram:
                 offload_model_from_device_for_memory_preservation(transformer, target_device=gpu, preserved_memory_gb=8)
@@ -1798,16 +463,6 @@ def worker(
                 overlapped_frames = latent_window_size * 4 - 3
 
                 current_pixels = vae_decode(real_history_latents[:, :, :section_latent_frames], vae).cpu()
-
-                print()
-                print("===== VAE Decode Info =====")
-                print("Shape :", tuple(current_pixels.shape))
-                print("Min   :", float(current_pixels.min()))
-                print("Max   :", float(current_pixels.max()))
-                print("Dtype :", current_pixels.dtype)
-                print("===========================")
-                print()
-                
                 history_pixels = soft_append_bcthw(current_pixels, history_pixels, overlapped_frames)
 
             if not high_vram:
@@ -1822,19 +477,7 @@ def worker(
 
             stream.output_queue.push(('file', output_filename))
 
-            print(f"=== EXIT LOOP : latent_padding={latent_padding} ===")
-
-
-            
             current_section -= 1
-            timeline_iteration += 1
-
-
-            print("Finished scheduler iteration", timeline_iteration - 1)
-            print("--------------------------------")
-
-
-
 
             if is_last_section:
                 elapsed_time = int(time.time() - start_time)
@@ -1850,37 +493,13 @@ def worker(
                 text_encoder, text_encoder_2, image_encoder, vae, transformer
             )
 
-
-     
-
-
     stream.output_queue.push(('end', None))
     return
 
 
-def process(
-    frame_collection,
-    prompt,
-    n_prompt,
-    seed,
-    total_second_length,
-    latent_window_size,
-    steps,
-    cfg,
-    gs,
-    rs,
-    gpu_memory_preservation,
-    use_teacache,
-    mp4_crf,
-    resolution,
-    teacache_threshold,
-    lora_file,
-    lora_multiplier,
-    fp8_optimization
-):
+def process(input_image, end_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, resolution, teacache_threshold, lora_file, lora_multiplier, fp8_optimization):
     global stream
-    assert frame_collection is not None
-    assert len(frame_collection) > 0, 'No input image!'
+    assert input_image is not None, 'No input image!'
 
     yield None, None, '', '', gr.update(interactive=False), gr.update(interactive=True)
 
@@ -1888,7 +507,8 @@ def process(
 
     async_run(
     worker,
-    frame_collection,
+    np.array(input_image),
+    end_image,
     prompt,
     n_prompt,
     seed,
@@ -1906,7 +526,7 @@ def process(
     lora_file,
     lora_multiplier,
     fp8_optimization
-    )
+   )
 
 
 
@@ -1926,98 +546,6 @@ def process(
         if flag == 'end':
             yield output_filename, gr.update(visible=False), gr.update(), '', gr.update(interactive=True), gr.update(interactive=False)
             break
-
-
-def process_multikey(
-    frame_collection,
-    prompt,
-    n_prompt,
-    seed,
-    total_second_length,
-    latent_window_size,
-    steps,
-    cfg,
-    gs,
-    rs,
-    gpu_memory_preservation,
-    use_teacache,
-    mp4_crf,
-    resolution,
-    teacache_threshold,
-    lora_file,
-    lora_multiplier,
-    fp8_optimization
-):
-
-    global stream
-
-    assert frame_collection is not None
-    assert len(frame_collection) > 0
-
-    yield None, None, '', '', gr.update(interactive=False), gr.update(interactive=True)
-
-    stream = AsyncStream()
-
-    async_run(
-
-        worker,
-
-        frame_collection,
-
-        prompt,
-
-        n_prompt,
-
-        seed,
-
-        total_second_length,
-
-        latent_window_size,
-
-        steps,
-
-        cfg,
-
-        gs,
-
-        rs,
-
-        gpu_memory_preservation,
-
-        use_teacache,
-
-        mp4_crf,
-
-        resolution,
-
-        teacache_threshold,
-
-        lora_file,
-
-        lora_multiplier,
-
-        fp8_optimization
-
-    )
-
-    output_filename = None
-
-    while True:
-
-        flag, data = stream.output_queue.next()
-
-        if flag == 'file':
-            output_filename = data
-            yield output_filename, gr.update(), gr.update(), gr.update(), gr.update(interactive=False), gr.update(interactive=True)
-
-        if flag == 'progress':
-            preview, desc, html = data
-            yield gr.update(), gr.update(visible=True, value=preview), desc, html, gr.update(interactive=False), gr.update(interactive=True)
-
-        if flag == 'end':
-            yield output_filename, gr.update(visible=False), gr.update(), '', gr.update(interactive=True), gr.update(interactive=False)
-            break
-
 
 
 def end_process():
@@ -2137,10 +665,6 @@ with block:
                     input_image = gr.Image(sources='upload', type="pil", label="Start Frame", height=320, show_fullscreen_button=False, interactive=True)
                 with gr.Column():
                     end_image = gr.Image(sources='upload', type="numpy", label="End Frame (Optional)", height=320)
-                multikey_frames = gr.JSON(
-                 label="MultiKey Frames",
-                 visible=False
-                )
             
             prompt = gr.Textbox(label="Prompt", value='')
             example_quick_prompts = gr.Dataset(samples=quick_prompts, label='Quick List', samples_per_page=1000, components=[prompt])
@@ -2183,48 +707,7 @@ with block:
             open_output_folder_button.click(fn=open_output_folder, inputs=[], outputs=[])
 
     ips = [input_image, end_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, resolution, teacache_threshold, lora_file, lora_multiplier, fp8_optimization]
-
-    multikey_ips = [
-      multikey_frames,
-      prompt,
-      n_prompt,
-      seed,
-      total_second_length,
-      latent_window_size,
-      steps,
-      cfg,
-      gs,
-      rs,
-      gpu_memory_preservation,
-      use_teacache,
-      mp4_crf,
-      resolution,
-      teacache_threshold,
-      lora_file,
-      lora_multiplier,
-      fp8_optimization
-    ]
-
-
-
     start_button.click(fn=process, inputs=ips, outputs=[result_video, preview_image, progress_desc, progress_bar, start_button, end_button])
-
-    multikey_button = gr.Button(visible=False)
-
-    multikey_button.click(
-     fn=process_multikey,
-     inputs=multikey_ips,
-     outputs=[
-        result_video,
-        preview_image,
-        progress_desc,
-        progress_bar,
-        start_button,
-        end_button
-    ],
-    api_name="process_multikey"
-    )
-
     end_button.click(fn=end_process)
 
 
