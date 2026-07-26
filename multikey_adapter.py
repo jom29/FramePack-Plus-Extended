@@ -3,6 +3,7 @@ import shutil
 import os
 import sys
 import subprocess
+import threading
 from runtime_environment import RuntimeEnvironment
 
 
@@ -545,7 +546,7 @@ class MultiKeyAdapter:
 
 
     def launch_runtime(self, env):
-
+     
 
      print()
      print("Executable :", repr(env.python_executable))
@@ -594,9 +595,28 @@ class MultiKeyAdapter:
              "--port",
              "17861",
          ],
-         cwd=env.working_directory,
-         env=proc_env
-     )
+          cwd=env.working_directory,
+          env=proc_env,
+          stdout=subprocess.PIPE,
+          stderr=subprocess.STDOUT,
+          text=True,
+          bufsize=1
+        )
+
+
+
+        
+     
+     def runtime_logger():
+        for line in self.process.stdout:
+          print("[RUNTIME]", line.rstrip())
+     
+     threading.Thread(
+        target=runtime_logger,
+        daemon=True
+        ).start()
+
+     
 
      print()
      print("PID :", self.process.pid)
@@ -623,3 +643,6 @@ class MultiKeyAdapter:
        print()
 
        print("============= Runtime Log =============")
+
+
+    
