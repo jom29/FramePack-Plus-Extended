@@ -841,31 +841,7 @@ def worker(
         
 
 
-        #start_frame = runtime.frames[0]
-
-
-       # =====================================================
-       # EXPERIMENTAL PATCH
-       # Dynamic CLIP start frame based on current segment
-       # =====================================================
-
-        segment = runtime.current_segment
-
-        start_index = segment.start_frame_index
-        end_index = segment.end_frame_index
-
-        print()
-        print("========================================")
-        print("[CLIP PATCH]")
-        print("Segment :", segment.segment_index)
-        print("Start Index :", start_index)
-        print("End Index   :", end_index)
-        print("========================================")
-
-        start_frame = runtime.frames[start_index]
-
-
-
+        start_frame = runtime.frames[0]
 
         H, W, C = start_frame.shape
 
@@ -945,8 +921,7 @@ def worker(
          ('progress', (None, '', make_progress_bar_html(0, 'Processing end frame ...')))
         )
 
-        #end_frame = runtime.frames[-1]
-        end_frame = runtime.frames[end_index]
+        end_frame = runtime.frames[-1]
 
         H_end, W_end, C_end = end_frame.shape
 
