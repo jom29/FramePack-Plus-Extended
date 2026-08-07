@@ -3,10 +3,9 @@ import shutil
 import os
 import sys
 import subprocess
-import threading
 from runtime_environment import RuntimeEnvironment
 
-
+import threading
 import time
 import requests
 from gradio_client import Client, handle_file
@@ -18,9 +17,72 @@ class MultiKeyAdapter:
 
     def __init__(self):
 
-        self.process = None
+      self.process = None
+
+      self.heartbeat_thread = None
+
+      self.heartbeat_running = False
 
     # --------------------------------------------------
+
+
+
+    def heartbeat_loop(self):
+
+      print("[Heartbeat] Thread Started")
+
+      while self.heartbeat_running:
+
+        try:
+
+            response = requests.get(
+                "http://127.0.0.1:17861",
+                timeout=3
+            )
+
+            print(
+                "[Heartbeat]",
+                response.status_code
+            )
+
+        except Exception as ex:
+
+            print(
+                "[Heartbeat] Runtime unreachable:",
+                ex
+            )
+
+        time.sleep(10)
+
+      print("[Heartbeat] Thread Stopped")
+
+
+
+
+    def start_heartbeat(self):
+
+        if self.heartbeat_running:
+         return
+
+        self.heartbeat_running = True
+
+        self.heartbeat_thread = threading.Thread(
+          target=self.heartbeat_loop,
+          daemon=True
+        )
+
+        self.heartbeat_thread.start()
+
+
+
+    def stop_heartbeat(self):
+
+      self.heartbeat_running = False
+
+      if self.heartbeat_thread is not None:
+
+        self.heartbeat_thread.join(timeout=2)
+
 
 
 
@@ -249,13 +311,21 @@ class MultiKeyAdapter:
 
       self.connect_runtime()
 
-      self.render_original(
-       timeline,
-       prompt,
-       negative_prompt,
-       duration,
-       steps
-       )
+      self.start_heartbeat()
+
+      try:
+
+        self.render_original(
+          timeline,
+          prompt,
+          negative_prompt,
+          duration,
+          steps
+        )
+
+      finally:
+
+        self.stop_heartbeat()
 
       return
 
@@ -546,7 +616,7 @@ class MultiKeyAdapter:
 
 
     def launch_runtime(self, env):
-     
+
 
      print()
      print("Executable :", repr(env.python_executable))
@@ -595,28 +665,9 @@ class MultiKeyAdapter:
              "--port",
              "17861",
          ],
-          cwd=env.working_directory,
-          env=proc_env,
-          stdout=subprocess.PIPE,
-          stderr=subprocess.STDOUT,
-          text=True,
-          bufsize=1
-        )
-
-
-
-        
-     
-     def runtime_logger():
-        for line in self.process.stdout:
-          print("[RUNTIME]", line.rstrip())
-     
-     threading.Thread(
-        target=runtime_logger,
-        daemon=True
-        ).start()
-
-     
+         cwd=env.working_directory,
+         env=proc_env
+     )
 
      print()
      print("PID :", self.process.pid)
@@ -643,6 +694,3 @@ class MultiKeyAdapter:
        print()
 
        print("============= Runtime Log =============")
-
-
-    
