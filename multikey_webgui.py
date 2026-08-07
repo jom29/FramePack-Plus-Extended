@@ -54,7 +54,12 @@ def launch_webgui():
                     gr.Slider(0,100,value=0,label="Progress",interactive=False)
             with gr.Column(scale=8):
                 with gr.Group():
-                    gr.Markdown("## 🎞 Keyframe Timeline")
+                    with gr.Row():
+
+                         gr.Markdown("## 🎞 Keyframe Timeline")
+
+                         clear_queue = gr.Button("🗑 Clear Queue",variant="stop",size="sm",min_width=140)
+
                     gr.Markdown("Timeline displays images selected from the Image Library.")
 
                     timeline_html = gr.HTML("""
@@ -105,8 +110,9 @@ def launch_webgui():
                     gr.Markdown("Click an image to add it to the Keyframe Timeline.")
 
                     search_library = gr.Textbox(placeholder="🔍 Search images...",show_label=False)
-                    library = gr.Gallery(label="",columns=6,rows=4,height=430,object_fit="contain",allow_preview=True,preview=True)
-                    library.select(fn=add_to_timeline,inputs=[timeline_images, library],outputs=[timeline_images, timeline_html])
+                    library = gr.Gallery(label="",columns=6,rows=4,height=430,object_fit="contain",allow_preview=False)
+                    library.select(fn=add_to_timeline,inputs=[timeline_images, library],outputs=[timeline_images, timeline_html, library])
+                    clear_queue.click(fn=clear_timeline,outputs=[timeline_images, timeline_html])
                     def load_library(p):
                         return scan_images(p)
                     refresh.click(load_library,project,library)
@@ -177,7 +183,10 @@ def add_to_timeline(evt: gr.SelectData, timeline, gallery_images):
 
     print("========================================")
 
-    return timeline, refresh_timeline(timeline, gallery_images)
+    return (timeline,refresh_timeline(timeline, gallery_images),gr.update(selected=None))
+
+def clear_timeline():
+    return [], refresh_timeline([], [])
 
 
 
