@@ -106,7 +106,7 @@ def launch_webgui():
 
                     search_library = gr.Textbox(placeholder="🔍 Search images...",show_label=False)
                     library = gr.Gallery(label="",columns=6,rows=4,height=430,object_fit="contain",allow_preview=True,preview=True)
-                    library.select(fn=add_to_timeline,inputs=timeline_images,outputs=[timeline_images, timeline_html])
+                    library.select(fn=add_to_timeline,inputs=[timeline_images, library],outputs=[timeline_images, timeline_html])
                     def load_library(p):
                         return scan_images(p)
                     refresh.click(load_library,project,library)
@@ -160,7 +160,7 @@ def launch_webgui():
 
 
 
-def add_to_timeline(evt: gr.SelectData, timeline):
+def add_to_timeline(evt: gr.SelectData, timeline, gallery_images):
 
     image_index = evt.index
 
@@ -177,15 +177,15 @@ def add_to_timeline(evt: gr.SelectData, timeline):
 
     print("========================================")
 
-    return timeline, refresh_timeline(timeline)
+    return timeline, refresh_timeline(timeline, gallery_images)
 
 
 
 
 
-def refresh_timeline(images):
+def refresh_timeline(timeline, gallery_images):
 
-    if not images:
+    if not timeline:
         return """
         <div style="
         height:140px;
@@ -212,8 +212,14 @@ def refresh_timeline(images):
     ">
     """
 
-    for i, image in enumerate(images):
-
+    for i, image_index in enumerate(timeline):
+        img = gallery_images[image_index]
+        image_path = img[0]
+        print("=" * 60)
+        print(img)
+        print(type(img))
+        print(img[0])
+        print("=" * 60)
         html += f"""
         <div style="
         min-width:100px;
@@ -224,21 +230,23 @@ def refresh_timeline(images):
         background:#2c2c2c;
         ">
 
-          <div style="
-          font-size:28px;
-          margin-bottom:8px;
-          ">
-          🖼️
+          <img
+          src="/gradio_api/file={image_path.replace('\\','/')}"
+          style="
+          width:90px;
+          height:90px;
+          object-fit:contain;
+          border-radius:8px;
+          "/>
+
+          <div style="margin-top:6px">
+            Pose {image_index + 1}
           </div>
 
-        <div style="margin-top:6px">
-           Pose {image + 1}
         </div>
+        """
 
-</div>
-"""
-
-        if i < len(images)-1:
+        if i < len(timeline) - 1:
             html += """
             <div style="font-size:26px">
             ➜
