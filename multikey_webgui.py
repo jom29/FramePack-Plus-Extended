@@ -1,17 +1,47 @@
 import os
+from pathlib import Path
 import gradio as gr
+from urllib.parse import quote
 
-PROJECTS_ROOT="projects"
+# ============================================================
+# Internal Project Paths
+# ============================================================
 
-def image_folder(project):
-    return os.path.join(PROJECTS_ROOT, project, "images")
+APP_ROOT = Path(__file__).resolve().parent
 
-def scan_images(project):
-    folder=image_folder(project)
-    if not os.path.isdir(folder):
+PROJECTS_ROOT = APP_ROOT / "projects"
+
+CURRENT_PROJECT = "demo"
+
+
+def image_folder(project=CURRENT_PROJECT):
+    """
+    Return the internal image folder for the selected project.
+
+    Cross-platform:
+        Windows -> APP_ROOT\\projects\\demo\\images
+        Linux   -> APP_ROOT/projects/demo/images
+    """
+    return PROJECTS_ROOT / project / "images"
+
+
+def scan_images(project=CURRENT_PROJECT):
+    """
+    Scan the project's internal Image Library.
+    """
+
+    folder = image_folder(project)
+
+    if not folder.is_dir():
         return []
-    exts=(".png",".jpg",".jpeg",".webp")
-    return [os.path.join(folder,f) for f in sorted(os.listdir(folder)) if f.lower().endswith(exts)]
+
+    exts = (".png", ".jpg", ".jpeg", ".webp")
+
+    return [
+        str(path)
+        for path in sorted(folder.iterdir())
+        if path.is_file() and path.suffix.lower() in exts
+    ]
 
 def launch_webgui():
     with gr.Blocks(title="FramePack Multi-Keyframe", theme=gr.themes.Soft()) as demo:
@@ -35,19 +65,30 @@ def launch_webgui():
                 gr.Button("▶ Generate Video",variant="primary",size="lg")
         with gr.Row():
             with gr.Column(scale=3):
+
+
                 with gr.Group():
                     gr.Markdown("## 📁 Path Configuration")
-                    gr.Textbox(label="FramePack Runtime Path")
-                    gr.Textbox(label="Projects Root",value="projects")
-                    gr.Textbox(label="Current Project",value="demo")
-                    gr.Textbox(label="Output Folder")
+
+                    runtime_path = gr.Textbox(label="FramePack Runtime Path",placeholder="Absolute path to FramePack runtime")
+
+                    webui_path = gr.Textbox(label="FramePack WebUI Path",placeholder="Absolute path to FramePack WebUI")
+
+                    output_path = gr.Textbox(label="Output Folder",placeholder="Absolute path for generated videos")
+                
                 with gr.Group():
                     gr.Markdown("## ⚙ Render Settings")
-                    gr.Number(label="Total Duration (seconds)",value=6)
-                    gr.Number(label="Steps",value=25)
-                    gr.Dropdown(["360p","540p","720p"],value="720p",label="Resolution")
-                    gr.Number(label="CFG Scale",value=1.0)
-                    gr.Number(label="Seed",value=-1)
+
+                    duration = gr.Number(label="Total Duration (seconds)",value=6,interactive=True)
+
+                    steps = gr.Number(label="Steps",value=25,interactive=True)
+
+                    resolution = gr.Dropdown(["360p", "540p", "720p"],value="720p",label="Resolution",interactive=True)
+
+                    cfg_scale = gr.Number(label="CFG Scale",value=1.0,interactive=True)
+
+                    seed = gr.Number(label="Seed",value=-1,interactive=True)
+                
                 with gr.Group():
                     gr.Markdown("## 📊 Status")
                     gr.Textbox(label="Status",value="Idle",interactive=False)
@@ -106,17 +147,21 @@ def launch_webgui():
                     with gr.Row():
                         gr.Markdown("## 🖼 Image Library")
                         refresh=gr.Button("Refresh")
-                    project=gr.Textbox(value="demo",visible=False)
+                   
                     gr.Markdown("Click an image to add it to the Keyframe Timeline.")
 
                     search_library = gr.Textbox(placeholder="🔍 Search images...",show_label=False)
                     library = gr.Gallery(label="",columns=6,rows=4,height=430,object_fit="contain",allow_preview=False)
                     library.select(fn=add_to_timeline,inputs=[timeline_images, library],outputs=[timeline_images, timeline_html, library])
                     clear_queue.click(fn=clear_timeline,outputs=[timeline_images, timeline_html])
-                    def load_library(p):
-                        return scan_images(p)
-                    refresh.click(load_library,project,library)
-                    demo.load(load_library,project,library)
+
+                    def load_library():
+                        return scan_images()
+                    
+                    refresh.click(load_library,outputs=library)
+
+                    demo.load(load_library,outputs=library)
+                    
             with gr.Column(scale=3):
                 with gr.Group():
                     gr.Markdown("## 💬 Prompts")
@@ -240,7 +285,7 @@ def refresh_timeline(timeline, gallery_images):
         ">
 
           <img
-          src="/gradio_api/file={image_path.replace('\\','/')}"
+          src="/gradio_api/file={quote(str(Path(image_path).resolve()).replace(os.sep, '/'))}"
           style="
           width:90px;
           height:90px;
