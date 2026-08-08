@@ -3,7 +3,7 @@ from pathlib import Path
 import gradio as gr
 from urllib.parse import quote
 import sys
-
+from motion_timeline import MotionTimeline
 
 def reverse_render_sequence(timeline):
     """
@@ -12,6 +12,25 @@ def reverse_render_sequence(timeline):
     """
 
     return list(reversed(timeline))
+
+
+
+
+
+
+def build_render_timeline(timeline, gallery_images):
+    render_timeline = reverse_render_sequence(timeline)
+
+    motion_timeline = MotionTimeline()
+
+    for image_index in render_timeline:
+        image_path = gallery_images[image_index][0]
+
+        motion_timeline.add_pose(image_path)
+
+    motion_timeline.load_images()
+
+    return motion_timeline
 
 
 
@@ -359,13 +378,30 @@ def add_to_timeline(evt: gr.SelectData, timeline, gallery_images):
 
     print("Timeline :", timeline)
 
+    print("Timeline :", timeline)
+
     render_timeline = reverse_render_sequence(timeline)
 
     print("Render Timeline:", render_timeline)
 
+    motion_timeline = build_render_timeline(timeline,gallery_images)
+
+    print()
+    print("========================================")
+    print("W6.2 : MotionTimeline")
     print("========================================")
 
+    print("KeyFrames :", len(motion_timeline.keyposes))
+
+    for pose in motion_timeline.keyposes:
+      print(pose.index + 1,"-",pose.image_path)
+
+      print("========================================")
+
     return (timeline,refresh_timeline(timeline, gallery_images),gr.update(selected=None))
+
+
+
 
 def clear_timeline():
     return [], refresh_timeline([], [])
