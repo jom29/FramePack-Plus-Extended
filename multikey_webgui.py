@@ -2,6 +2,134 @@ import os
 from pathlib import Path
 import gradio as gr
 from urllib.parse import quote
+import sys
+
+
+def reverse_render_sequence(timeline):
+    """
+    Convert GUI timeline order into the order expected
+    by the render pipeline.
+    """
+
+    return list(reversed(timeline))
+
+
+
+
+
+
+# ============================================================
+# W6.1.2 - Reverse Sequence Test
+# ============================================================
+
+print("========================================")
+print("REVERSE SEQUENCE TEST")
+print("========================================")
+
+test_timeline = [0, 1, 2]
+
+print("GUI Timeline   :", test_timeline)
+
+render_timeline = reverse_render_sequence(test_timeline)
+
+print("Render Timeline:", render_timeline)
+
+print("========================================")
+
+
+
+
+
+
+# ============================================================
+# Runtime Path Helpers
+# ============================================================
+
+def resolve_python_executable(runtime_root):
+    """
+    Find the Python executable inside the configured
+    FramePack runtime on Windows or Linux.
+    """
+
+    runtime_root = Path(runtime_root).expanduser()
+
+    candidates = [
+        # Windows virtual environment
+        runtime_root / "venv" / "Scripts" / "python.exe",
+
+        # Linux virtual environment
+        runtime_root / "venv" / "bin" / "python",
+
+        # Windows embedded Python
+        runtime_root / "system" / "python" / "python.exe",
+
+        # Linux/system-style Python location
+        runtime_root / "system" / "python" / "bin" / "python",
+    ]
+
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+
+    # Fallback to the Python running this WebGUI
+    return Path(sys.executable)
+
+
+def resolve_path(value):
+    """
+    Convert a user-entered path into a normalized Path.
+    Works on Windows and Linux.
+    """
+
+    if not value:
+        return None
+
+    return Path(value).expanduser().resolve()
+
+
+
+
+def validate_paths(runtime, webui, output):
+    """
+    Validate configured runtime, WebUI and output paths.
+    """
+
+    runtime = resolve_path(runtime)
+    webui = resolve_path(webui)
+    output = resolve_path(output)
+
+    messages = []
+
+    if runtime is None:
+        messages.append("FramePack Runtime Path is empty.")
+    elif not runtime.is_dir():
+        messages.append(f"Runtime path does not exist: {runtime}")
+
+    if webui is None:
+        messages.append("FramePack WebUI Path is empty.")
+    elif not webui.is_dir():
+        messages.append(f"WebUI path does not exist: {webui}")
+
+    if output is None:
+        messages.append("Output Folder is empty.")
+
+    if messages:
+        return "\n".join(messages)
+
+    # Output is allowed not to exist yet.
+    output.mkdir(parents=True, exist_ok=True)
+
+    python_executable = resolve_python_executable(runtime)
+
+    return (
+        "Paths OK\n\n"
+        f"Runtime : {runtime}\n"
+        f"WebUI   : {webui}\n"
+        f"Output  : {output}\n"
+        f"Python  : {python_executable}"
+    )
+
+
 
 # ============================================================
 # Internal Project Paths
@@ -70,11 +198,15 @@ def launch_webgui():
                 with gr.Group():
                     gr.Markdown("## 📁 Path Configuration")
 
-                    runtime_path = gr.Textbox(label="FramePack Runtime Path",placeholder="Absolute path to FramePack runtime")
+                    runtime_path = gr.Textbox(label="FramePack Runtime Path",placeholder="Absolute path to FramePack runtime",interactive=True)
 
-                    webui_path = gr.Textbox(label="FramePack WebUI Path",placeholder="Absolute path to FramePack WebUI")
+                    webui_path = gr.Textbox(label="FramePack WebUI Path",placeholder="Absolute path to FramePack WebUI",interactive=True)
 
-                    output_path = gr.Textbox(label="Output Folder",placeholder="Absolute path for generated videos")
+                    output_path = gr.Textbox(label="Output Folder",placeholder="Absolute path for generated videos",interactive=True)
+
+                    check_paths = gr.Button("🔍 Check Paths",variant="secondary")
+
+                    path_status = gr.Textbox(label="Path Status",interactive=False,lines=5)
                 
                 with gr.Group():
                     gr.Markdown("## ⚙ Render Settings")
@@ -154,6 +286,7 @@ def launch_webgui():
                     library = gr.Gallery(label="",columns=6,rows=4,height=430,object_fit="contain",allow_preview=False)
                     library.select(fn=add_to_timeline,inputs=[timeline_images, library],outputs=[timeline_images, timeline_html, library])
                     clear_queue.click(fn=clear_timeline,outputs=[timeline_images, timeline_html])
+                    check_paths.click(fn=validate_paths,inputs=[runtime_path,webui_path,output_path],outputs=path_status)
 
                     def load_library():
                         return scan_images()
@@ -225,6 +358,10 @@ def add_to_timeline(evt: gr.SelectData, timeline, gallery_images):
         timeline.append(image_index)
 
     print("Timeline :", timeline)
+
+    render_timeline = reverse_render_sequence(timeline)
+
+    print("Render Timeline:", render_timeline)
 
     print("========================================")
 
