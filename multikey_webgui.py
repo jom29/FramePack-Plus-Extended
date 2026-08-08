@@ -4,6 +4,7 @@ import gradio as gr
 from urllib.parse import quote
 import sys
 from motion_timeline import MotionTimeline
+from multikey_adapter import MultiKeyAdapter
 
 def reverse_render_sequence(timeline):
     """
@@ -397,6 +398,23 @@ def add_to_timeline(evt: gr.SelectData, timeline, gallery_images):
       print(pose.index + 1,"-",pose.image_path)
 
       print("========================================")
+
+
+    adapter = MultiKeyAdapter()
+
+    print()
+    print("========================================")
+    print("W6.3 : MULTIKEY ADAPTER TEST")
+    print("========================================")
+
+    print("Adapter :", type(adapter).__name__)
+
+    print("KeyFrames received:")
+
+    for pose in motion_timeline.keyposes:
+      print(pose.index + 1,"-",pose.image_path)
+      print("========================================")
+
 
     return (timeline,refresh_timeline(timeline, gallery_images),gr.update(selected=None))
 
