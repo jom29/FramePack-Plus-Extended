@@ -191,6 +191,81 @@ def scan_images(project=CURRENT_PROJECT):
         if path.is_file() and path.suffix.lower() in exts
     ]
 
+
+def build_render_config(
+    timeline,
+    positive_prompt,
+    negative_prompt,
+    duration,
+    steps,
+    resolution,
+    cfg_scale,
+    seed
+):
+    render_timeline = reverse_render_sequence(timeline)
+
+    config = {
+        "keyframes": render_timeline,
+        "positive_prompt": positive_prompt,
+        "negative_prompt": negative_prompt,
+        "duration": float(duration),
+        "steps": int(steps),
+        "resolution": resolution,
+        "cfg_scale": float(cfg_scale),
+        "seed": int(seed),
+    }
+
+    return config
+
+
+
+
+
+def test_render_config(
+    timeline,
+    positive_prompt,
+    negative_prompt,
+    duration,
+    steps,
+    resolution,
+    cfg_scale,
+    seed
+):
+    config = build_render_config(
+        timeline,
+        positive_prompt,
+        negative_prompt,
+        duration,
+        steps,
+        resolution,
+        cfg_scale,
+        seed
+    )
+
+    print()
+    print("========================================")
+    print("W6.3.2 : RENDER CONFIGURATION TEST")
+    print("========================================")
+
+    print("KeyFrames       :", config["keyframes"])
+    print("Positive Prompt :", config["positive_prompt"])
+    print("Negative Prompt :", config["negative_prompt"])
+    print("Duration        :", config["duration"])
+    print("Steps           :", config["steps"])
+    print("Resolution      :", config["resolution"])
+    print("CFG Scale       :", config["cfg_scale"])
+    print("Seed            :", config["seed"])
+
+    print("========================================")
+
+   
+
+
+
+
+
+
+
 def launch_webgui():
     with gr.Blocks(title="FramePack Multi-Keyframe", theme=gr.themes.Soft()) as demo:
         # ==========================================
@@ -211,6 +286,7 @@ def launch_webgui():
                 gr.Markdown("AI Animation Pipeline")
             with gr.Column(scale=2,min_width=220):
                  generate_button = gr.Button("▶ Generate Video",variant="primary",size="lg")
+                
         with gr.Row():
             with gr.Column(scale=3):
 
@@ -320,7 +396,10 @@ def launch_webgui():
                     gr.Markdown("## 💬 Prompts")
                     positive_prompt = gr.Textbox(label="Positive Prompt",lines=8)
                     negative_prompt = gr.Textbox(label="Negative Prompt",lines=5)
-                    
+
+                generate_button.click(fn=test_render_config,inputs=[timeline_images,positive_prompt,negative_prompt,duration,steps,resolution,cfg_scale,seed],outputs=[])
+
+
                 with gr.Group():
                     gr.Markdown("## 📋 Timeline Summary")
 
