@@ -242,8 +242,7 @@ class MultiKeyAdapter:
       steps,
       runtime_root,
       webui_root,
-      output_folder,
-      render_config=None
+    output_folder
     ):
 
       print()
@@ -321,8 +320,7 @@ class MultiKeyAdapter:
           prompt,
           negative_prompt,
           duration,
-          steps,
-          render_config
+          steps
         )
 
       finally:
@@ -346,8 +344,7 @@ class MultiKeyAdapter:
      prompt,
      negative_prompt,
      duration,
-     steps,
-     render_config=None
+     steps
      ):
 
 
@@ -368,15 +365,7 @@ class MultiKeyAdapter:
 
 
       
-      resolution_value = int(str(render_config["resolution"]).replace("p", ""))
 
-      print()
-      print("========================================")
-      print("Render Resolution")
-      print("========================================")
-      print("GUI Resolution :", render_config["resolution"])
-      print("API Resolution :", resolution_value)
-      print("========================================")
 
 
       # ==========================================================
@@ -432,17 +421,6 @@ class MultiKeyAdapter:
       print()
       print("[1] Building Payload")
 
-
-
-
-      print()
-      print("========================================")
-      print("W6.4.3 : ADAPTER USING CONFIG")
-      print("========================================")
-      print("Seed from Render Config :", render_config["seed"])
-      print("========================================")
-
-  
       payload = {
 
       "input_image": {
@@ -461,57 +439,32 @@ class MultiKeyAdapter:
 
       "n_prompt": negative_prompt,
 
-      "seed": render_config["seed"],
+      "seed": 31337,
 
-      "total_second_length": render_config["duration"],
+      "total_second_length": duration,
 
-      "latent_window_size": render_config["latent_window_size"],
+      "latent_window_size": 9,
 
-      "steps": render_config["steps"],
+      "steps": steps,
 
-      "cfg": render_config["cfg_scale"],
+      "cfg": 1.0,
 
-      "gs": render_config["gs"],
+      "gs": 10.0,
 
-      "rs": render_config["rs"],
+      "rs": 0.0,
 
-      "gpu_memory_preservation": render_config["gpu_memory_preservation"],
+      "gpu_memory_preservation": 6,
 
-      "use_teacache": render_config["use_teacache"],
+      "use_teacache": True,
 
-      "mp4_crf": render_config["mp4_crf"]
+      "mp4_crf": 16
 
      }
 
+      
 
 
-      print()
-      print("========================================")
-      print("W6.4.5 : CLIENT.SUBMIT CONFIG TEST")
-      print("========================================")
 
-      print("Frame Count             :", len(frame_collection))
-      print("Positive Prompt         :", render_config["positive_prompt"])
-      print("Negative Prompt         :", render_config["negative_prompt"])
-      print("Seed                    :", render_config["seed"])
-      print("Duration                :", render_config["duration"])
-      print("Latent Window Size     :", render_config["latent_window_size"])
-      print("Steps                   :", render_config["steps"])
-      print("CFG                     :", render_config["cfg_scale"])
-      print("GS                      :", render_config["gs"])
-      print("RS                      :", render_config["rs"])
-      print("GPU Memory Preservation :", render_config["gpu_memory_preservation"])
-      print("TeaCache                :", render_config["use_teacache"])
-      print("MP4 CRF                 :", render_config["mp4_crf"])
-      print("Resolution              :", resolution_value)
-      print("TeaCache Threshold      :", render_config["teacache_threshold"])
-      print("LoRA File               :", render_config["lora_file"])
-      print("LoRA Multiplier         :", render_config["lora_multiplier"])
-      print("FP8 Optimization       :", render_config["fp8_optimization"])
-
-      print("API Endpoint            : /process_multikey")
-
-      print("========================================")
 
 
 
@@ -522,49 +475,32 @@ class MultiKeyAdapter:
 
       job = self.client.submit(
 
-       frame_collection=[
-         {
-            "path": frame
-         }
-         for frame in frame_collection
-       ],
+      frame_collection=[
+      {
+        "path": frame
+      }
+      for frame in frame_collection
+      ],
 
-        prompt=render_config["positive_prompt"],
-
-        n_prompt=render_config["negative_prompt"],
-
-        seed=render_config["seed"],
-
-        total_second_length=render_config["duration"],
-
-        latent_window_size=render_config["latent_window_size"],
-
-        steps=render_config["steps"],
-
-        cfg=render_config["cfg_scale"],
-
-        gs=render_config["gs"],
-
-        rs=render_config["rs"],
-
-        gpu_memory_preservation=render_config["gpu_memory_preservation"],
-
-        use_teacache=render_config["use_teacache"],
-
-        mp4_crf=render_config["mp4_crf"],
-
-        resolution=resolution_value,
-
-        teacache_threshold=render_config["teacache_threshold"],
-
-        lora_file=render_config["lora_file"],
-
-        lora_multiplier=render_config["lora_multiplier"],
-
-        fp8_optimization=render_config["fp8_optimization"],
-
-        api_name="/process_multikey"
-        )
+      prompt=prompt,
+      n_prompt=negative_prompt,
+      seed=31337,
+      total_second_length=duration,
+      latent_window_size=9,
+      steps=steps,
+      cfg=1.0,
+      gs=10.0,
+      rs=0.0,
+      gpu_memory_preservation=6,
+      use_teacache=True,
+      mp4_crf=16,
+      resolution=640,
+      teacache_threshold=0.15,
+      lora_file=None,
+      lora_multiplier=0.8,
+      fp8_optimization=False,
+      api_name="/process_multikey"
+      )
 
       print()
       print("Job Submitted")

@@ -289,7 +289,107 @@ def test_render_config(
 
 
 
+def test_adapter_config(
+    timeline,
+    gallery_images,
+    positive_prompt,
+    negative_prompt,
+    duration,
+    steps,
+    resolution,
+    cfg_scale,
+    seed,
+    runtime_path,
+    webui_path
+):
+    config = build_render_config(
+        timeline,
+        positive_prompt,
+        negative_prompt,
+        duration,
+        steps,
+        resolution,
+        cfg_scale,
+        seed
+    )
 
+    motion_timeline = build_render_timeline(timeline,gallery_images)
+
+    print()
+    print("========================================")
+    print("W6.4.2 : ADAPTER CONFIG TEST")
+    print("========================================")
+
+    print("KeyFrames :", config["keyframes"])
+
+    print()
+    print("Render Configuration")
+    print("----------------------------------------")
+
+    print("Positive Prompt :", config["positive_prompt"])
+    print("Negative Prompt :", config["negative_prompt"])
+    print("Duration        :", config["duration"])
+    print("Steps           :", config["steps"])
+    print("Resolution      :", config["resolution"])
+    print("CFG Scale       :", config["cfg_scale"])
+    print("Seed            :", config["seed"])
+
+    print()
+    print("Hidden Defaults")
+    print("----------------------------------------")
+
+    print("latent_window_size       :", config["latent_window_size"])
+    print("gs                       :", config["gs"])
+    print("rs                       :", config["rs"])
+    print("gpu_memory_preservation :", config["gpu_memory_preservation"])
+    print("use_teacache            :", config["use_teacache"])
+    print("mp4_crf                 :", config["mp4_crf"])
+    print("teacache_threshold      :", config["teacache_threshold"])
+    print("lora_file               :", config["lora_file"])
+    print("lora_multiplier         :", config["lora_multiplier"])
+    print("fp8_optimization        :", config["fp8_optimization"])
+
+    print()
+    print("Creating MultiKeyAdapter...")
+    adapter = MultiKeyAdapter()
+
+    print("Adapter :", type(adapter).__name__)
+    print("========================================")
+
+
+    env = adapter.discover_runtime(runtime_path,webui_path)
+
+    print()
+    print("========================================")
+    print("Runtime Discovery")
+    print("========================================")
+    print("Valid :", env.valid)
+    print("Python :", env.python_executable)
+    print("Demo :", env.demo_gradio)
+    print("Working Directory :", env.working_directory)
+    print("========================================")
+
+
+    adapter.launch_runtime(env)
+
+    adapter.wait_until_ready()
+
+    adapter.connect_runtime()
+
+    result = adapter.render_original(
+    timeline=motion_timeline,
+    prompt=config["positive_prompt"],
+    negative_prompt=config["negative_prompt"],
+    duration=config["duration"],
+    steps=config["steps"],
+    render_config=config
+   )
+
+    print()
+    print("W6.4.3 RESULT")
+    print("----------------------------------------")
+    print(result)
+    print("========================================")
 
 
 
@@ -424,7 +524,7 @@ def launch_webgui():
                     positive_prompt = gr.Textbox(label="Positive Prompt",lines=8)
                     negative_prompt = gr.Textbox(label="Negative Prompt",lines=5)
 
-                generate_button.click(fn=test_render_config,inputs=[timeline_images,positive_prompt,negative_prompt,duration,steps,resolution,cfg_scale,seed],outputs=[])
+                generate_button.click(fn=test_adapter_config,inputs=[timeline_images,library,positive_prompt,negative_prompt,duration,steps,resolution,cfg_scale,seed,runtime_path, webui_path],outputs=[])
 
 
                 with gr.Group():
