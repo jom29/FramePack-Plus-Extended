@@ -210,7 +210,7 @@ def launch_webgui():
                 gr.Markdown("# 🎬 FramePack Multi-Keyframe")
                 gr.Markdown("AI Animation Pipeline")
             with gr.Column(scale=2,min_width=220):
-                gr.Button("▶ Generate Video",variant="primary",size="lg")
+                 generate_button = gr.Button("▶ Generate Video",variant="primary",size="lg")
         with gr.Row():
             with gr.Column(scale=3):
 
@@ -318,8 +318,9 @@ def launch_webgui():
             with gr.Column(scale=3):
                 with gr.Group():
                     gr.Markdown("## 💬 Prompts")
-                    gr.Textbox(label="Positive Prompt",lines=8)
-                    gr.Textbox(label="Negative Prompt",lines=5)
+                    positive_prompt = gr.Textbox(label="Positive Prompt",lines=8)
+                    negative_prompt = gr.Textbox(label="Negative Prompt",lines=5)
+                    
                 with gr.Group():
                     gr.Markdown("## 📋 Timeline Summary")
 
