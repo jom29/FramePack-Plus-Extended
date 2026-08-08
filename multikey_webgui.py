@@ -213,6 +213,18 @@ def build_render_config(
         "resolution": resolution,
         "cfg_scale": float(cfg_scale),
         "seed": int(seed),
+
+        # Hidden render defaults
+        "latent_window_size": 9,
+        "gs": 10.0,
+        "rs": 0.0,
+        "gpu_memory_preservation": 6,
+        "use_teacache": True,
+        "mp4_crf": 16,
+        "teacache_threshold": 0.15,
+        "lora_file": None,
+        "lora_multiplier": 0.8,
+        "fp8_optimization": False,
     }
 
     return config
@@ -255,6 +267,21 @@ def test_render_config(
     print("Resolution      :", config["resolution"])
     print("CFG Scale       :", config["cfg_scale"])
     print("Seed            :", config["seed"])
+
+    print()
+    print("Hidden Defaults")
+    print("----------------------------------------")
+
+    print("latent_window_size       :", config["latent_window_size"])
+    print("gs                       :", config["gs"])
+    print("rs                       :", config["rs"])
+    print("gpu_memory_preservation :", config["gpu_memory_preservation"])
+    print("use_teacache            :", config["use_teacache"])
+    print("mp4_crf                 :", config["mp4_crf"])
+    print("teacache_threshold      :", config["teacache_threshold"])
+    print("lora_file               :", config["lora_file"])
+    print("lora_multiplier         :", config["lora_multiplier"])
+    print("fp8_optimization        :", config["fp8_optimization"])
 
     print("========================================")
 
