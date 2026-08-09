@@ -478,7 +478,21 @@ def launch_webgui():
     saved_paths = load_multikeyframe_paths()
 
 
-    with gr.Blocks(title="FramePack Multi-Keyframe", theme=gr.themes.Soft()) as demo:
+    with gr.Blocks(title="FramePack Multi-Keyframe",theme=gr.themes.Soft(),
+        css="""
+        #generate_video_button button:disabled {
+         opacity: 0.55 !important;
+         filter: brightness(0.65) !important;
+         cursor: not-allowed !important;
+        }
+
+        #generate_video_button button:disabled:hover {
+         filter: brightness(0.65) !important;
+      }
+      """
+    ) as demo:
+
+        
         # ==========================================
         # Timeline Queue State
         # ==========================================
@@ -496,7 +510,7 @@ def launch_webgui():
                 gr.Markdown("# 🎬 FramePack Multi-Keyframe")
                 gr.Markdown("AI Animation Pipeline")
             with gr.Column(scale=2,min_width=220):
-                 generate_button = gr.Button("▶ Generate Video",variant="primary",size="lg")
+                 generate_button = gr.Button("▶ Generate Video",variant="primary",size="lg",elem_id="generate_video_button")
                 
         with gr.Row():
             with gr.Column(scale=3):
@@ -611,7 +625,31 @@ def launch_webgui():
                     positive_prompt = gr.Textbox(label="Positive Prompt",lines=8)
                     negative_prompt = gr.Textbox(label="Negative Prompt",lines=5)
 
-                generate_button.click(fn=test_adapter_config,inputs=[timeline_images,library,positive_prompt,negative_prompt,duration,steps,resolution,cfg_scale,seed,runtime_path, webui_path],outputs=[])
+                generate_button.click(
+                   fn=start_generation_ui,
+                   inputs=[],
+                   outputs=[generate_button]
+                ).then(
+                   fn=test_adapter_config,
+                   inputs=[
+                      timeline_images,
+                      library,
+                      positive_prompt,
+                      negative_prompt,
+                      duration,
+                      steps,
+                      resolution,
+                      cfg_scale,
+                      seed,
+                      runtime_path,
+                      webui_path
+                    ],
+                   outputs=[]
+                ).then(
+                    fn=finish_generation_ui,
+                    inputs=[],
+                    outputs=[generate_button]
+                )
 
 
                 with gr.Group():
@@ -796,8 +834,21 @@ def refresh_timeline(timeline, gallery_images):
 
     return html
 
-if __name__=="__main__":
 
-    
+def start_generation_ui():
+       return gr.update(
+        value="⏳ Generating...",
+        interactive=False
+    )
+
+def finish_generation_ui():
+       return gr.update(
+        value="▶ Generate Video",
+        interactive=True
+    )
+
+
+
+if __name__=="__main__":
 
     launch_webgui()
