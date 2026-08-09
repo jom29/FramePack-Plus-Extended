@@ -24,7 +24,22 @@ def reverse_render_sequence(timeline):
 
 
 def build_render_timeline(timeline, gallery_images):
+
+    print()
+    print("========================================")
+    print("W6.4.8 : BUILD RENDER TIMELINE INPUT")
+    print("========================================")
+
+    print("GUI Timeline Input :", timeline)
+
     render_timeline = reverse_render_sequence(timeline)
+    render_timeline = timeline
+
+    print("Reversed Timeline  :", render_timeline)
+
+    print("========================================")
+
+    #render_timeline = reverse_render_sequence(timeline)
 
     motion_timeline = MotionTimeline()
 
@@ -456,6 +471,17 @@ def test_adapter_config(
 
     adapter.connect_runtime()
 
+    print()
+    print("========================================")
+    print("W6.4.4 : FINAL WEBGUI → ADAPTER ORDER")
+    print("========================================")
+
+    for index, pose in enumerate(motion_timeline.keyposes):
+      print(f"Adapter Frame {index} : {pose.image_path}")
+
+    print("========================================")
+    print()
+
     result = adapter.render_original(
     timeline=motion_timeline,
     prompt=config["positive_prompt"],
@@ -692,7 +718,7 @@ def launch_webgui():
                     """
                     )
 
-    demo.launch()
+    demo.launch(server_name="0.0.0.0",server_port=7860)
 
 
 

@@ -62,8 +62,8 @@ image_encoder = SiglipVisionModel.from_pretrained("lllyasviel/flux_redux_bfl", s
 
 def load_transfomer():
     print("Loading transformer ...")
-    transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained('lllyasviel/FramePackI2V_HY', torch_dtype=torch.bfloat16).cpu()
-    #transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained(f"{os.environ['HF_HOME']}/hub/models--lllyasviel--FramePackI2V_HY/snapshots/86cef4396041b6002c957852daac4c91aaa47c79", torch_dtype=torch.bfloat16).cpu()
+    #transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained('lllyasviel/FramePackI2V_HY', torch_dtype=torch.bfloat16).cpu()
+    transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained(f"{os.environ['HF_HOME']}/hub/models--lllyasviel--FramePackI2V_HY/snapshots/86cef4396041b6002c957852daac4c91aaa47c79", torch_dtype=torch.bfloat16).cpu()
     transformer.eval()
     transformer.high_quality_fp32_output_for_inference = True
     print("transformer.high_quality_fp32_output_for_inference = True")
@@ -492,15 +492,31 @@ def worker(
 
     runtime.frames.clear()
 
-    for frame in frame_collection:
+    print()
+    print("========================================")
+    print("W6.4.6 : RUNTIME RECEIVED FRAME ORDER")
+    print("========================================")
 
-      print("Frame Type :", type(frame))
+    for index, frame in enumerate(frame_collection):
 
-      image = Image.open(frame["path"]).convert("RGB")
+        print("Frame Type :", type(frame))
 
-      image = np.array(image)
+        image_path = frame["path"]
 
-      runtime.frames.append(image)
+        print(f"Runtime Frame {index} : {os.path.basename(image_path)}")
+        print(f"Runtime Path {index}  : {image_path}")
+
+        image = Image.open(image_path).convert("RGB")
+        image = np.array(image)
+
+        runtime.frames.append(image)
+
+    print("----------------------------------------")
+
+    for index, frame in enumerate(runtime.frames):
+      print(f"runtime.frames[{index}] : shape={frame.shape}")
+
+    print("========================================")
 
 
 
@@ -1103,6 +1119,25 @@ def worker(
                 print("Before planner lookup")
 
                 active_segment = planner.segments[runtime_segment.segment_index]
+
+
+                print()
+                print("========================================")
+                print("W6.4.7 : SEGMENT CONDITIONING ORDER")
+                print("========================================")
+
+                print("Segment :", runtime_segment.segment_index)
+                print("Start Index :", runtime_segment.start_index)
+                print("End Index   :", runtime_segment.end_index)
+
+                print("Start Frame Shape :", runtime_segment.start_frame.shape)
+                print("End Frame Shape   :", runtime_segment.end_frame.shape)
+
+                print("Start Latent Shape :", runtime_segment.start_latent.shape)
+                print("End Latent Shape   :", runtime_segment.end_latent.shape)
+
+                print("========================================")
+
 
                 planner_start_latent = runtime_segment.start_latent
                 planner_end_latent = runtime_segment.end_latent
