@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 import gradio as gr
@@ -5,6 +6,9 @@ from urllib.parse import quote
 import sys
 from motion_timeline import MotionTimeline
 from multikey_adapter import MultiKeyAdapter
+
+
+
 
 def reverse_render_sequence(timeline):
     """
@@ -157,9 +161,85 @@ def validate_paths(runtime, webui, output):
 
 APP_ROOT = Path(__file__).resolve().parent
 
+MULTIKEYFRAME_PATH_CONFIG = APP_ROOT / "multikeyframe_paths.json"
+
 PROJECTS_ROOT = APP_ROOT / "projects"
 
 CURRENT_PROJECT = "demo"
+
+
+
+
+
+def load_multikeyframe_paths():
+
+    if not MULTIKEYFRAME_PATH_CONFIG.is_file():
+
+        return {
+            "runtime_path": "",
+            "webui_path": "",
+            "output_path": ""
+        }
+
+    try:
+
+        with open(
+            MULTIKEYFRAME_PATH_CONFIG,
+            "r",
+            encoding="utf-8"
+        ) as file:
+
+            data = json.load(file)
+
+        return {
+            "runtime_path": data.get("runtime_path", ""),
+            "webui_path": data.get("webui_path", ""),
+            "output_path": data.get("output_path", "")
+        }
+
+    except Exception as error:
+
+        print()
+        print("========================================")
+        print("MULTIKEYFRAME PATH CONFIG LOAD ERROR")
+        print("========================================")
+        print(error)
+        print("========================================")
+
+        return {
+            "runtime_path": "",
+            "webui_path": ""
+        }
+
+
+
+def save_multikeyframe_paths(runtime_path, webui_path, output_path):
+
+    data = {
+        "runtime_path": str(runtime_path or ""),
+        "webui_path": str(webui_path or ""),
+        "output_path": str(output_path or "")
+    }
+
+    with open(
+        MULTIKEYFRAME_PATH_CONFIG,
+        "w",
+        encoding="utf-8"
+    ) as file:
+
+        json.dump(
+            data,
+            file,
+            indent=4
+        )
+
+    return (
+        "MultiKeyframe paths saved.\n\n"
+        f"Runtime : {runtime_path}\n"
+        f"WebUI   : {webui_path}"
+        f"Output  : {output_path}"
+    )
+
 
 
 def image_folder(project=CURRENT_PROJECT):
@@ -394,6 +474,10 @@ def test_adapter_config(
 
 
 def launch_webgui():
+
+    saved_paths = load_multikeyframe_paths()
+
+
     with gr.Blocks(title="FramePack Multi-Keyframe", theme=gr.themes.Soft()) as demo:
         # ==========================================
         # Timeline Queue State
@@ -421,13 +505,15 @@ def launch_webgui():
                 with gr.Group():
                     gr.Markdown("## 📁 Path Configuration")
 
-                    runtime_path = gr.Textbox(label="FramePack Runtime Path",placeholder="Absolute path to FramePack runtime",interactive=True)
+                    runtime_path = gr.Textbox(label="FramePack Runtime Path",placeholder="Absolute path to FramePack runtime",value=saved_paths["runtime_path"],interactive=True)
 
-                    webui_path = gr.Textbox(label="FramePack WebUI Path",placeholder="Absolute path to FramePack WebUI",interactive=True)
+                    webui_path = gr.Textbox(label="FramePack WebUI Path",placeholder="Absolute path to FramePack WebUI",value=saved_paths["webui_path"],interactive=True)
 
-                    output_path = gr.Textbox(label="Output Folder",placeholder="Absolute path for generated videos",interactive=True)
+                    output_path = gr.Textbox(label="Output Folder",placeholder="Absolute path for generated videos",value=saved_paths["output_path"],interactive=True)
 
                     check_paths = gr.Button("🔍 Check Paths",variant="secondary")
+
+                    save_paths = gr.Button("💾 Save Paths",variant="secondary")
 
                     path_status = gr.Textbox(label="Path Status",interactive=False,lines=5)
                 
@@ -510,6 +596,7 @@ def launch_webgui():
                     library.select(fn=add_to_timeline,inputs=[timeline_images, library],outputs=[timeline_images, timeline_html, library])
                     clear_queue.click(fn=clear_timeline,outputs=[timeline_images, timeline_html])
                     check_paths.click(fn=validate_paths,inputs=[runtime_path,webui_path,output_path],outputs=path_status)
+                    save_paths.click(fn=save_multikeyframe_paths,inputs=[runtime_path, webui_path, output_path],outputs=path_status)
 
                     def load_library():
                         return scan_images()
