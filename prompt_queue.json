@@ -1,0 +1,24 @@
+{
+  "prompts": [
+    {
+      "positive": "The woman is waiting to catch the ball",
+      "negative": "Teleport, Cutscene"
+    },
+    {
+      "positive": "While she was waiting to catch the ball, she suddenly hit by the ball",
+      "negative": "Teleport, Cutscene"
+    },
+    {
+      "positive": "She then suddenly fall down in the ground, and she was getting hurt",
+      "negative": "Teleport, Cutscene"
+    },
+    {
+      "positive": "She was picking up the ball and she gradually stand up",
+      "negative": "Teleport, Cutscene"
+    },
+    {
+      "positive": "She was going to standup again with confident",
+      "negative": "Teleport, Cutscene"
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import shutil
 import os
 import sys
 import subprocess
+import json
 from runtime_environment import RuntimeEnvironment
 
 import threading
@@ -461,6 +462,8 @@ class MultiKeyAdapter:
 
       "n_prompt": negative_prompt,
 
+      "prompt_queue": render_config.get("prompt_queue", []),
+
       "seed": render_config["seed"],
 
       "total_second_length": render_config["duration"],
@@ -530,8 +533,10 @@ class MultiKeyAdapter:
        ],
 
         prompt=render_config["positive_prompt"],
-
+        
         n_prompt=render_config["negative_prompt"],
+
+        prompt_queue=json.dumps(render_config.get("prompt_queue", [])),
 
         seed=render_config["seed"],
 

@@ -182,7 +182,271 @@ PROJECTS_ROOT = APP_ROOT / "projects"
 
 CURRENT_PROJECT = "demo"
 
+# ============================================================
+# Prompt Queue
+# ============================================================
 
+PROMPT_QUEUE_FILE = APP_ROOT / "prompt_queue.json"
+
+
+def load_prompt_queue():
+    if not PROMPT_QUEUE_FILE.is_file():
+        raise FileNotFoundError(
+            f"Prompt queue file not found: {PROMPT_QUEUE_FILE}"
+        )
+
+    with open(PROMPT_QUEUE_FILE, "r", encoding="utf-8") as file:
+        data = json.load(file)
+
+    prompts = data.get("prompts", [])
+
+    if not isinstance(prompts, list):
+        raise ValueError(
+            "prompt_queue.json must contain a 'prompts' list."
+        )
+
+    for index, item in enumerate(prompts):
+        if not isinstance(item, dict):
+            raise ValueError(
+                f"Prompt entry {index} must be an object."
+            )
+
+        if "positive" not in item:
+            raise ValueError(
+                f"Prompt entry {index} is missing 'positive'."
+            )
+
+        if "negative" not in item:
+            raise ValueError(
+                f"Prompt entry {index} is missing 'negative'."
+            )
+
+    print()
+    print("========================================")
+    print("PROMPT QUEUE LOADED")
+    print("========================================")
+    print("File :", PROMPT_QUEUE_FILE)
+    print("Count:", len(prompts))
+    print("========================================")
+
+    return prompts
+
+
+def load_prompt_section(index):
+    """
+    Load one prompt section from prompt_queue.json.
+
+    The JSON file is always re-read so the WebGUI
+    reflects the current saved queue.
+    """
+
+    prompts = load_prompt_queue()
+
+    if not prompts:
+        return (
+            0,
+            "### Prompt Section 0 / 0",
+            "",
+            ""
+        )
+
+    # Keep index inside the available range.
+    index = max(0, min(index, len(prompts) - 1))
+
+    item = prompts[index]
+
+    return (
+        index,
+        f"### Prompt Section {index + 1} / {len(prompts)}",
+        item["positive"],
+        item["negative"]
+    )
+
+
+
+def save_prompt_section(index, positive, negative):
+    """
+    Save the currently edited prompt section directly
+    into prompt_queue.json.
+    """
+
+    prompts = load_prompt_queue()
+
+    if not prompts:
+        return (
+            index,
+            "### Prompt Section 0 / 0"
+        )
+
+    # Keep index inside valid range.
+    index = max(0, min(index, len(prompts) - 1))
+
+    # Update the selected prompt section.
+    prompts[index]["positive"] = positive
+    prompts[index]["negative"] = negative
+
+    # Write the updated queue back to JSON.
+    with open(
+        PROMPT_QUEUE_FILE,
+        "w",
+        encoding="utf-8"
+    ) as file:
+
+        json.dump(
+            {
+                "prompts": prompts
+            },
+            file,
+            indent=4,
+            ensure_ascii=False
+        )
+
+    print()
+    print("========================================")
+    print("PROMPT SECTION SAVED")
+    print("========================================")
+    print("Section :", index + 1)
+    print("Positive:", positive)
+    print("Negative:", negative)
+    print("File    :", PROMPT_QUEUE_FILE)
+    print("========================================")
+
+    return (
+        index,
+        f"### Prompt Section {index + 1} / {len(prompts)}"
+    )
+
+
+def add_prompt_section():
+    """
+    Add a new prompt section to prompt_queue.json.
+
+    The new section is appended to the end of the queue
+    and becomes the currently selected section.
+    """
+
+    prompts = load_prompt_queue()
+
+    new_prompt = {
+        "positive": "",
+        "negative": ""
+    }
+
+    prompts.append(new_prompt)
+
+    with open(
+        PROMPT_QUEUE_FILE,
+        "w",
+        encoding="utf-8"
+    ) as file:
+
+        json.dump(
+            {
+                "prompts": prompts
+            },
+            file,
+            indent=4,
+            ensure_ascii=False
+        )
+
+    new_index = len(prompts) - 1
+
+    print()
+    print("========================================")
+    print("PROMPT SECTION ADDED")
+    print("========================================")
+    print("Section :", new_index + 1)
+    print("Total   :", len(prompts))
+    print("File    :", PROMPT_QUEUE_FILE)
+    print("========================================")
+
+    return (
+        new_index,
+        f"### Prompt Section {new_index + 1} / {len(prompts)}",
+        "",
+        ""
+    )
+
+
+
+
+def delete_prompt_section(index):
+    """
+    Delete the currently selected prompt section.
+
+    At least one prompt section is always preserved.
+    """
+
+    prompts = load_prompt_queue()
+
+    if not prompts:
+        return (
+            0,
+            "### Prompt Section 0 / 0",
+            "",
+            ""
+        )
+
+    # Never allow the queue to become empty.
+    if len(prompts) == 1:
+        return (
+            0,
+            "### Prompt Section 1 / 1",
+            prompts[0]["positive"],
+            prompts[0]["negative"]
+        )
+
+    # Keep index valid.
+    index = max(0, min(index, len(prompts) - 1))
+
+    # Delete the selected section.
+    deleted_section = index + 1
+    del prompts[index]
+
+    # After deletion, move to the previous section
+    # when the deleted section was the last one.
+    new_index = min(index, len(prompts) - 1)
+
+    # Save updated queue.
+    with open(
+        PROMPT_QUEUE_FILE,
+        "w",
+        encoding="utf-8"
+    ) as file:
+
+        json.dump(
+            {
+                "prompts": prompts
+            },
+            file,
+            indent=4,
+            ensure_ascii=False
+        )
+
+    item = prompts[new_index]
+
+    print()
+    print("========================================")
+    print("PROMPT SECTION DELETED")
+    print("========================================")
+    print("Deleted :", deleted_section)
+    print("Current :", new_index + 1)
+    print("Total   :", len(prompts))
+    print("File    :", PROMPT_QUEUE_FILE)
+    print("========================================")
+
+    return (
+        new_index,
+        f"### Prompt Section {new_index + 1} / {len(prompts)}",
+        item["positive"],
+        item["negative"]
+    )
+
+
+
+
+
+PROMPT_QUEUE = load_prompt_queue()
 
 
 
@@ -303,6 +567,7 @@ def build_render_config(
         "keyframes": render_timeline,
         "positive_prompt": positive_prompt,
         "negative_prompt": negative_prompt,
+        "prompt_queue": PROMPT_QUEUE,
         "duration": float(duration),
         "steps": int(steps),
         "resolution": resolution,
@@ -407,6 +672,26 @@ def test_adapter_config(
         cfg_scale,
         seed
     )
+
+
+    print()
+    print("========================================")
+    print("PROMPT QUEUE TEST")
+    print("========================================")
+    print("Available Prompts :", len(config["prompt_queue"]))
+    print()
+
+    for index, item in enumerate(config["prompt_queue"]):
+       print(f"Prompt {index}")
+       print("Positive :", item["positive"])
+       print("Negative :", item["negative"])
+       print("----------------------------------------")
+
+    print("========================================")
+
+
+
+
 
     motion_timeline = build_render_timeline(timeline,gallery_images)
 
@@ -646,10 +931,58 @@ def launch_webgui():
                     demo.load(load_library,outputs=library)
                     
             with gr.Column(scale=3):
+
+
                 with gr.Group():
                     gr.Markdown("## 💬 Prompts")
-                    positive_prompt = gr.Textbox(label="Positive Prompt",lines=8)
-                    negative_prompt = gr.Textbox(label="Negative Prompt",lines=5)
+
+                    prompt_section_state = gr.State(0)
+
+                    prompt_section_label = gr.Markdown(
+                        "### Prompt Section 1"
+                    )
+
+                    with gr.Row():
+                        prompt_previous = gr.Button(
+                            "◀ Previous",
+                            size="sm"
+                        )
+
+                        prompt_next = gr.Button(
+                            "Next ▶",
+                            size="sm"
+                        )
+
+                    positive_prompt = gr.Textbox(
+                        label="Positive Prompt",
+                        lines=8
+                    )
+
+                    negative_prompt = gr.Textbox(
+                        label="Negative Prompt",
+                        lines=5
+                    )
+
+                    with gr.Row():
+                        prompt_add = gr.Button(
+                            "➕ Add",
+                            size="sm"
+                        )
+
+                        prompt_delete = gr.Button(
+                            "🗑 Delete",
+                            variant="stop",
+                            size="sm"
+                        )
+
+                        prompt_save = gr.Button(
+                            "💾 Save",
+                            variant="primary",
+                            size="sm"
+                        )
+
+
+
 
                 generate_button.click(
                    fn=start_generation_ui,
@@ -676,6 +1009,111 @@ def launch_webgui():
                     inputs=[],
                     outputs=[generate_button]
                 )
+
+
+                # ==========================================================
+                # Prompt Queue Navigation
+                # ==========================================================
+
+                prompt_previous.click(
+                    fn=lambda index, timeline, gallery_images: (
+                        *load_prompt_section(index - 1),
+                        refresh_timeline(
+                            timeline,
+                            gallery_images,
+                            index - 1
+                        )
+                    ),
+                    inputs=[
+                        prompt_section_state,
+                        timeline_images,
+                        library,
+                    ],
+                    outputs=[
+                        prompt_section_state,
+                        prompt_section_label,
+                        positive_prompt,
+                        negative_prompt,
+                        timeline_html,
+                    ],
+                )
+
+                prompt_next.click(
+                    fn=lambda index, timeline, gallery_images: (
+                        *load_prompt_section(index + 1),
+                        refresh_timeline(
+                            timeline,
+                            gallery_images,
+                            index + 1
+                        )
+                    ),
+                    inputs=[
+                        prompt_section_state,
+                        timeline_images,
+                        library,
+                    ],
+                    outputs=[
+                        prompt_section_state,
+                        prompt_section_label,
+                        positive_prompt,
+                        negative_prompt,
+                        timeline_html,
+                    ],
+                )
+
+                # ==========================================================
+                # Prompt Queue Save
+                # ==========================================================
+
+                prompt_save.click(
+                    fn=save_prompt_section,
+                    inputs=[
+                        prompt_section_state,
+                        positive_prompt,
+                        negative_prompt,
+                    ],
+                    outputs=[
+                        prompt_section_state,
+                        prompt_section_label,
+                    ],
+                )
+
+
+
+
+                # ==========================================================
+                # Prompt Queue Add
+                # ==========================================================
+
+                prompt_add.click(
+                    fn=add_prompt_section,
+                    inputs=[],
+                    outputs=[
+                        prompt_section_state,
+                        prompt_section_label,
+                        positive_prompt,
+                        negative_prompt,
+                    ],
+                )
+
+
+                # ==========================================================
+                # Prompt Queue Delete
+                # ==========================================================
+
+                prompt_delete.click(
+                    fn=delete_prompt_section,
+                    inputs=[
+                        prompt_section_state,
+                    ],
+                    outputs=[
+                        prompt_section_state,
+                        prompt_section_label,
+                        positive_prompt,
+                        negative_prompt,
+                    ],
+                )
+
 
 
                 with gr.Group():
@@ -786,7 +1224,7 @@ def clear_timeline():
 
 
 
-def refresh_timeline(timeline, gallery_images):
+def refresh_timeline(timeline, gallery_images, active_prompt_index=None):
 
     if not timeline:
         return """
@@ -850,9 +1288,27 @@ def refresh_timeline(timeline, gallery_images):
         """
 
         if i < len(timeline) - 1:
-            html += """
-            <div style="font-size:26px">
-            ➜
+
+            # ------------------------------------------------------
+            # Active prompt section → active timeline segment
+            #
+            # i = 0 → Pose 1 → Pose 2
+            # i = 1 → Pose 2 → Pose 3
+            # i = 2 → Pose 3 → Pose 4
+            # ------------------------------------------------------
+
+            arrow_color = "red" if (
+                active_prompt_index is not None
+                and active_prompt_index == i
+            ) else "white"
+
+            html += f"""
+            <div style="
+                font-size:26px;
+                color:{arrow_color};
+                font-weight:bold;
+            ">
+                ➜
             </div>
             """
 

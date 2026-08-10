@@ -2,8 +2,11 @@ import gc
 from diffusers_helper.hf_login import login
 
 import os
-
+import json
 os.environ['HF_HOME'] = os.path.abspath(os.path.realpath(os.path.join(os.path.dirname(__file__), './hf_download')))
+
+
+
 
 import gradio as gr
 import torch
@@ -434,6 +437,7 @@ def worker(
     frame_collection,
     prompt,
     n_prompt,
+    prompt_queue,
     seed,
     total_second_length,
     latent_window_size,
@@ -456,8 +460,23 @@ def worker(
     # ==========================================================
 
     runtime = RuntimeState()
-
+    prompt_queue = json.loads(prompt_queue)
   
+
+    if not isinstance(prompt_queue, list):
+      raise ValueError("Prompt queue must be a list.")
+
+    if len(prompt_queue) == 0:
+       raise ValueError("Prompt queue is empty.")
+
+    print()
+    print("========================================")
+    print("PROMPT QUEUE RECEIVED")
+    print("========================================")
+    print("Prompt Count :", len(prompt_queue))
+    print("========================================")
+
+    
     
     print()
     print("RUNNING FILE:")
@@ -654,7 +673,15 @@ def worker(
 
     total_segments = max(len(planner.segments), 1)
 
+    if len(prompt_queue) < total_segments:
+       raise ValueError(
+        f"Prompt queue contains {len(prompt_queue)} prompts, "
+        f"but {total_segments} segments are required."
+      )
+
     segment_duration = (total_second_length / total_segments)
+
+    
 
     for segment in planner.segments:
       segment.duration_seconds = segment_duration
@@ -724,23 +751,14 @@ def worker(
 
 
    
-        # Text encoding
-
-        stream.output_queue.push(('progress', (None, '', make_progress_bar_html(0, 'Text encoding ...'))))
+        # ==========================================================
+        # Text Encoder Preparation
+        # Prompt encoding is now performed per segment.
+        # ==========================================================
 
         if not high_vram:
-            fake_diffusers_current_device(text_encoder, gpu)  # since we only encode one text - that is one model move and one encode, offload is same time consumption since it is also one load and one encode.
-            load_model_as_complete(text_encoder_2, target_device=gpu)
-
-        llama_vec, clip_l_pooler = encode_prompt_conds(prompt, text_encoder, text_encoder_2, tokenizer, tokenizer_2)
-
-        if cfg == 1:
-            llama_vec_n, clip_l_pooler_n = torch.zeros_like(llama_vec), torch.zeros_like(clip_l_pooler)
-        else:
-            llama_vec_n, clip_l_pooler_n = encode_prompt_conds(n_prompt, text_encoder, text_encoder_2, tokenizer, tokenizer_2)
-
-        llama_vec, llama_attention_mask = crop_or_pad_yield_mask(llama_vec, length=512)
-        llama_vec_n, llama_attention_mask_n = crop_or_pad_yield_mask(llama_vec_n, length=512)
+           fake_diffusers_current_device(text_encoder, gpu)
+           load_model_as_complete(text_encoder_2, target_device=gpu)
 
 
           # Processing input image (start frame)
@@ -930,10 +948,6 @@ def worker(
             image_encoder_last_hidden_state = (image_encoder_last_hidden_state + end_image_encoder_last_hidden_state) / 2
 
         # Dtype
-        llama_vec = llama_vec.to(transformer_dtype)
-        llama_vec_n = llama_vec_n.to(transformer_dtype)
-        clip_l_pooler = clip_l_pooler.to(transformer_dtype)
-        clip_l_pooler_n = clip_l_pooler_n.to(transformer_dtype)
         image_encoder_last_hidden_state = image_encoder_last_hidden_state.to(transformer_dtype)
 
         # Load transformer model
@@ -1020,6 +1034,26 @@ def worker(
             print(f"RUN SEGMENT {runtime_segment.segment_index}")
             print("========================================")
 
+            # ==========================================================
+            # POC : Segment Prompt Selection
+            # ==========================================================
+
+            segment_index = runtime_segment.segment_index
+
+            segment_prompt_data = prompt_queue[segment_index]
+
+            segment_positive_prompt = segment_prompt_data["positive"]
+            segment_negative_prompt = segment_prompt_data["negative"]
+
+            print()
+            print("========================================")
+            print("POC : SEGMENT PROMPT")
+            print("========================================")
+            print("Segment :", segment_index)
+            print("Positive:", segment_positive_prompt)
+            print("Negative:", segment_negative_prompt)
+            print("========================================")
+
 
            # ==========================================================
            # M7 : Reset diffusion generator per planner segment
@@ -1089,6 +1123,41 @@ def worker(
 
             segment_end_np = resize_and_center_crop(runtime_segment.end_frame,target_width=width,target_height=height)
 
+            # ----------------------------------------------------------
+            # PREVIOUS KEYFRAME
+            # ----------------------------------------------------------
+
+            previous_frame_np = None
+            previous_embed = None
+
+            if runtime_segment.segment_index > 0:
+
+               previous_segment = runtime.segment_collection[runtime_segment.segment_index - 1]
+
+               previous_frame_np = resize_and_center_crop(previous_segment.start_frame,target_width=width,target_height=height)
+
+            # ----------------------------------------------------------
+            # INCOMING MOTION
+            # ----------------------------------------------------------
+
+            incoming_motion = None
+
+            if previous_embed is not None:
+
+               incoming_motion = (segment_start_embed - previous_embed)
+
+
+            # ----------------------------------------------------------
+            # PREVIOUS KEYFRAME EMBEDDING
+            # ----------------------------------------------------------
+
+            if previous_frame_np is not None:
+
+               previous_embed = hf_clip_vision_encode(previous_frame_np,feature_extractor,image_encoder).last_hidden_state
+
+
+
+
             if not high_vram:
                load_model_as_complete(image_encoder, target_device=gpu)
 
@@ -1096,9 +1165,47 @@ def worker(
 
             segment_end_embed = hf_clip_vision_encode(segment_end_np,feature_extractor,image_encoder).last_hidden_state
 
-            image_encoder_last_hidden_state = (segment_start_embed * 0.85 + segment_end_embed * 0.15)
+            # ----------------------------------------------------------
+            # LOOK-AHEAD IMAGE
+            # ----------------------------------------------------------
 
+            lookahead_embed = None
+
+            if runtime_segment.segment_index + 1 < len(runtime.segment_collection):
+
+               next_segment = runtime.segment_collection[runtime_segment.segment_index + 1]
+
+               lookahead_np = resize_and_center_crop(next_segment.end_frame,target_width=width,target_height=height)
+
+               lookahead_embed = hf_clip_vision_encode(lookahead_np,feature_extractor,image_encoder).last_hidden_state
+
+
+            
+
+        
+
+            # ----------------------------------------------------------
+            # TEMPORAL START CONDITIONING
+            # ----------------------------------------------------------
+
+            if incoming_motion is not None:
+
+               temporal_start_embed = (segment_start_embed + incoming_motion * 0.15)
+
+            else:
+
+               temporal_start_embed = segment_start_embed
+
+
+            image_encoder_last_hidden_state = (temporal_start_embed * 0.5 + segment_end_embed * 0.5)
+
+
+            # IMPORTANT:
+            # Convert BOTH branches to the transformer's dtype.
             image_encoder_last_hidden_state = (image_encoder_last_hidden_state.to(transformer_dtype))
+
+
+
 
             print()
             print("========================================")
@@ -1107,6 +1214,98 @@ def worker(
             print("Segment :", runtime_segment.segment_index)
             print("Embedding :", tuple(image_encoder_last_hidden_state.shape))
             print("========================================")
+
+
+            # ==========================================================
+            # POC : Segment-local Text Prompt Encoding
+            # ==========================================================
+
+            print() 
+            print("========================================")
+            print("POC : SEGMENT TEXT ENCODING")
+            print("========================================")
+            print("Segment :", segment_index)
+            print("Positive:", segment_positive_prompt)
+            print("Negative:", segment_negative_prompt)
+            print("========================================")
+
+
+            # ==========================================================
+            # Original FramePack text encoder device preparation
+            # ==========================================================
+
+            if not high_vram:
+                fake_diffusers_current_device(text_encoder, gpu)
+                load_model_as_complete(text_encoder_2, target_device=gpu)
+
+
+            # ==========================================================
+            # Encode segment positive prompt
+            # ==========================================================
+
+            llama_vec, clip_l_pooler = encode_prompt_conds(
+                segment_positive_prompt,
+                text_encoder,
+                text_encoder_2,
+                tokenizer,
+                tokenizer_2
+            )
+
+
+            # ==========================================================
+            # Encode segment negative prompt
+            # ==========================================================
+
+            if cfg == 1:
+                llama_vec_n = torch.zeros_like(llama_vec)
+                clip_l_pooler_n = torch.zeros_like(clip_l_pooler)
+            else:
+                llama_vec_n, clip_l_pooler_n = encode_prompt_conds(
+                    segment_negative_prompt,
+                    text_encoder,
+                    text_encoder_2,
+                    tokenizer,
+                    tokenizer_2
+                )
+
+
+            # ==========================================================
+            # Original FramePack prompt padding
+            # ==========================================================
+
+            llama_vec, llama_attention_mask = crop_or_pad_yield_mask(
+                llama_vec,
+                length=512
+            )
+
+            llama_vec_n, llama_attention_mask_n = crop_or_pad_yield_mask(
+                llama_vec_n,
+                length=512
+            )
+
+
+            # ==========================================================
+            # Original FramePack dtype conversion
+            # ==========================================================
+
+            llama_vec = llama_vec.to(transformer_dtype)
+            llama_vec_n = llama_vec_n.to(transformer_dtype)
+            clip_l_pooler = clip_l_pooler.to(transformer_dtype)
+            clip_l_pooler_n = clip_l_pooler_n.to(transformer_dtype)
+
+
+            # ==========================================================
+            # POC : Debug device
+            # ==========================================================
+
+            print("DEBUG DEVICE")
+            print("llama_vec:", llama_vec.device, llama_vec.dtype)
+            print("llama_vec_n:", llama_vec_n.device, llama_vec_n.dtype)
+            print("clip_l_pooler:", clip_l_pooler.device, clip_l_pooler.dtype)
+            print("clip_l_pooler_n:", clip_l_pooler_n.device, clip_l_pooler_n.dtype)
+            print("llama_attention_mask:", llama_attention_mask.device)
+            print("llama_attention_mask_n:", llama_attention_mask_n.device)
+
 
             for latent_padding in latent_paddings:
                 is_last_section = latent_padding == 0
@@ -1284,7 +1483,21 @@ def worker(
                     return
 
 
-    
+                # ==========================================================
+                # POC : Verify Segment Prompt Embeddings
+                # ==========================================================
+
+                print()
+                print("========================================")
+                print("POC : SAMPLER PROMPT CONDITIONING")
+                print("========================================")
+                print("Segment :", segment_index)
+                print("Positive prompt :", segment_positive_prompt)
+                print("Negative prompt :", segment_negative_prompt)
+                print("Positive embedding :", tuple(llama_vec.shape))
+                print("Negative embedding :", tuple(llama_vec_n.shape))
+                print("========================================")
+
 
 
                 generated_latents = sample_hunyuan(
@@ -1693,6 +1906,7 @@ def process_multikey(
     frame_collection,
     prompt,
     n_prompt,
+    prompt_queue,
     seed,
     total_second_length,
     latent_window_size,
@@ -1728,6 +1942,8 @@ def process_multikey(
         prompt,
 
         n_prompt,
+
+        prompt_queue,
 
         seed,
 
@@ -1945,10 +2161,15 @@ with block:
 
     ips = [input_image, end_image, prompt, n_prompt, seed, total_second_length, latent_window_size, steps, cfg, gs, rs, gpu_memory_preservation, use_teacache, mp4_crf, resolution, teacache_threshold, lora_file, lora_multiplier, fp8_optimization]
 
+   
+    prompt_queue = gr.Textbox(label="Prompt Queue",visible=False)
+
+    
     multikey_ips = [
       multikey_frames,
       prompt,
       n_prompt,
+      prompt_queue,
       seed,
       total_second_length,
       latent_window_size,
