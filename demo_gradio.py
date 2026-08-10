@@ -1025,14 +1025,14 @@ def worker(
            # M7 : Reset diffusion generator per planner segment
            # ==========================================================
 
-            rnd = torch.Generator("cpu").manual_seed(seed + runtime_segment.segment_index)
+            rnd = torch.Generator("cpu").manual_seed(seed)
 
             print()
             print("========================================")
             print("M7 : RANDOM GENERATOR")
             print("========================================")
             print("Segment :", runtime_segment.segment_index)
-            print("Seed    :", seed + runtime_segment.segment_index)
+            print("Seed    :", seed)
             print("========================================")
 
             previous_segment_index = -1
@@ -1096,7 +1096,7 @@ def worker(
 
             segment_end_embed = hf_clip_vision_encode(segment_end_np,feature_extractor,image_encoder).last_hidden_state
 
-            image_encoder_last_hidden_state = (segment_start_embed + segment_end_embed) / 2
+            image_encoder_last_hidden_state = (segment_start_embed * 0.85 + segment_end_embed * 0.15)
 
             image_encoder_last_hidden_state = (image_encoder_last_hidden_state.to(transformer_dtype))
 
@@ -1115,6 +1115,19 @@ def worker(
 
 
                 print(f"=== ENTER LOOP : latent_padding={latent_padding} ===")
+
+
+                print()
+                print("========================================")
+                print("BOUNDARY TEST")
+                print("Segment :", runtime_segment.segment_index)
+                print("First Section :", is_first_section)
+                print("Last Section :", is_last_section)
+                print("Latent Padding :", latent_padding)
+               
+                print("========================================")
+
+
 
                 print("Before planner lookup")
 
@@ -1142,6 +1155,9 @@ def worker(
                 planner_start_latent = runtime_segment.start_latent
                 planner_end_latent = runtime_segment.end_latent
 
+
+                print("Start Latent Mean :", float(planner_start_latent.mean()))
+                print("End Latent Mean   :", float(planner_end_latent.mean()))
 
 
                 # ==========================================================
@@ -1190,11 +1206,14 @@ def worker(
 
                 planner_end_latent = planner_end_latent.to(history_latents)
 
+
+
                 # ==========================================================
                 # POC-SEGMENT-01
                 # Inject planner end latent only on the first scheduler
                 # section, matching the original FramePack Plus behavior.
                 # ==========================================================
+          
 
                 if is_first_section:
                    clean_latents_post = planner_end_latent
@@ -1298,6 +1317,9 @@ def worker(
                     clean_latent_4x_indices=clean_latent_4x_indices,
                     callback=callback,
                     )
+
+
+                
 
                 # ===========================================
                 # POC : Update Rolling Anchor
