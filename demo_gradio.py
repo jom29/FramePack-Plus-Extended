@@ -239,6 +239,8 @@ class SegmentRuntime:
         self.history_latents = None
         self.history_pixels = None
 
+        self.rolling_anchor_latent = None
+
         self.total_generated_latent_frames = 0
 
         self.clean_latent_indices = None
@@ -1114,6 +1116,51 @@ def worker(
 
             current_anchor_latent = runtime_segment.start_latent
 
+            # ----------------------------------------------------------
+            # POC #2 : READ PREVIOUS SEGMENT ROLLING ANCHOR
+            # ----------------------------------------------------------
+
+            previous_rolling_anchor = None
+
+            if runtime_segment.segment_index > 0:
+
+                previous_segment = runtime.segment_collection[
+                    runtime_segment.segment_index - 1
+                ]
+
+                previous_rolling_anchor = (
+                    previous_segment.rolling_anchor_latent
+                )
+
+                if previous_rolling_anchor is not None:
+
+                    print()
+                    print("========================================")
+                    print("POC #2 : PREVIOUS ROLLING ANCHOR FOUND")
+                    print("========================================")
+                    print(
+                        "Current Segment :",
+                        runtime_segment.segment_index
+                    )
+                    print(
+                        "Previous Segment :",
+                        previous_segment.segment_index
+                    )
+                    print(
+                        "Anchor Shape :",
+                        tuple(previous_rolling_anchor.shape)
+                    )
+                    print("========================================")
+
+            else:
+
+                print()
+                print("========================================")
+                print("POC #2 : NO PREVIOUS ROLLING ANCHOR")
+                print("========================================")
+                print("Segment :", runtime_segment.segment_index)
+                print("========================================")
+
 
 
             
@@ -1427,7 +1474,40 @@ def worker(
 
                 clean_latents_post, clean_latents_2x, clean_latents_4x = history_latents[:, :, :1 + 2 + 16, :, :].split([1, 2, 16], dim=2)
             
-                clean_latents_pre = planner_start_latent.to(history_latents)
+                # ==========================================================
+                # POC #2 : ROLLING ANCHOR START BRIDGE
+                # ==========================================================
+
+                if previous_rolling_anchor is not None:
+
+                    anchor = previous_rolling_anchor.to(
+                        device=history_latents.device,
+                        dtype=history_latents.dtype
+                    )
+
+                    # Current keyframe remains dominant.
+                    # Previous generated endpoint provides temporal continuity.
+                    anchor_strength = 0.20
+
+                    clean_latents_pre = (
+                        planner_start_latent.to(history_latents) * (1.0 - anchor_strength)
+                        + anchor * anchor_strength
+                    )
+
+                    print()
+                    print("========================================")
+                    print("POC #2 : ROLLING ANCHOR START BRIDGE")
+                    print("========================================")
+                    print("Segment :", runtime_segment.segment_index)
+                    print("Start Weight  :", 1.0 - anchor_strength)
+                    print("Anchor Weight :", anchor_strength)
+                    print("Start Shape   :", tuple(clean_latents_pre.shape))
+                    print("========================================")
+
+                else:
+
+                    # Segment 0: no previous motion exists.
+                    clean_latents_pre = planner_start_latent.to(history_latents)
 
                 clean_latents_2x = torch.zeros_like(clean_latents_2x)
 
@@ -1574,6 +1654,26 @@ def worker(
                 # ===========================================
 
                 current_anchor_latent = generated_latents[:, :, -1:].detach().clone()
+
+                # ----------------------------------------------------------
+                # POC #2 : SAVE ROLLING ANCHOR TO CURRENT SEGMENT
+                # ----------------------------------------------------------
+
+                runtime_segment.rolling_anchor_latent = (
+                    current_anchor_latent.detach().clone()
+                )
+
+                print()
+                print("========================================")
+                print("POC #2 : SAVED ROLLING ANCHOR")
+                print("========================================")
+                print("Segment :", runtime_segment.segment_index)
+                print("Shape   :", tuple(runtime_segment.rolling_anchor_latent.shape))
+                print("Mean    :", float(runtime_segment.rolling_anchor_latent.mean()))
+                print("Std     :", float(runtime_segment.rolling_anchor_latent.std()))
+                print("========================================")
+
+
                 print()
                 print("========================================")
                 print("STEP 6 : ROLLING ANCHOR")
