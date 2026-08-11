@@ -1473,41 +1473,20 @@ def worker(
                 print(clean_latent_indices.shape)
 
                 clean_latents_post, clean_latents_2x, clean_latents_4x = history_latents[:, :, :1 + 2 + 16, :, :].split([1, 2, 16], dim=2)
+
+                # ==========================================================
+                # SEGMENT START : PURE KEYFRAME CONDITIONING
+                # ==========================================================
+                # Do NOT blend the previous segment's generated endpoint
+                # into the current segment's start keyframe.
+                #
+                # Each segment starts strictly from its own keyframe.
             
-                # ==========================================================
-                # POC #2 : ROLLING ANCHOR START BRIDGE
-                # ==========================================================
+                clean_latents_pre = planner_start_latent.to(history_latents)
 
-                if previous_rolling_anchor is not None:
 
-                    anchor = previous_rolling_anchor.to(
-                        device=history_latents.device,
-                        dtype=history_latents.dtype
-                    )
+                
 
-                    # Current keyframe remains dominant.
-                    # Previous generated endpoint provides temporal continuity.
-                    anchor_strength = 0.20
-
-                    clean_latents_pre = (
-                        planner_start_latent.to(history_latents) * (1.0 - anchor_strength)
-                        + anchor * anchor_strength
-                    )
-
-                    print()
-                    print("========================================")
-                    print("POC #2 : ROLLING ANCHOR START BRIDGE")
-                    print("========================================")
-                    print("Segment :", runtime_segment.segment_index)
-                    print("Start Weight  :", 1.0 - anchor_strength)
-                    print("Anchor Weight :", anchor_strength)
-                    print("Start Shape   :", tuple(clean_latents_pre.shape))
-                    print("========================================")
-
-                else:
-
-                    # Segment 0: no previous motion exists.
-                    clean_latents_pre = planner_start_latent.to(history_latents)
 
                 clean_latents_2x = torch.zeros_like(clean_latents_2x)
 

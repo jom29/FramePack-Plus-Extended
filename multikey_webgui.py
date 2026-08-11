@@ -539,6 +539,15 @@ def scan_images(project=CURRENT_PROJECT):
 
     folder = image_folder(project)
 
+    print()
+    print("========================================")
+    print("IMAGE LIBRARY SCAN")
+    print("========================================")
+    print("Project :", project)
+    print("Folder  :", folder)
+    print("Exists  :", folder.is_dir())
+    print("========================================")
+
     if not folder.is_dir():
         return []
 
@@ -567,7 +576,7 @@ def build_render_config(
         "keyframes": render_timeline,
         "positive_prompt": positive_prompt,
         "negative_prompt": negative_prompt,
-        "prompt_queue": PROMPT_QUEUE,
+        "prompt_queue": load_prompt_queue(),
         "duration": float(duration),
         "steps": int(steps),
         "resolution": resolution,
