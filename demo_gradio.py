@@ -1861,56 +1861,60 @@ def worker(
 
                   for i in range(1, len(timeline_builder)):
 
-                    current = timeline_builder[i]
+                      current = timeline_builder[i]
 
-                    # ==========================================================
-                    # M10 : Configurable Timeline Overlap
-                    # ==========================================================
+                      # ==========================================================
+                      # M10 : Configurable Timeline Overlap
+                      # ==========================================================
 
-                    timeline_overlap = 2
+                      timeline_overlap = 2
 
-                    overlap = min(timeline_overlap,current.shape[2] - 1)
+                      overlap = min(timeline_overlap,current.shape[2] - 1)
 
-                    print(f"Append Segment {i}"f" | Total {current.shape[2]}"f" | Overlap {overlap}"f" | Append {current.shape[2] - overlap}")
+                      print(f"Append Segment {i}"f" | Total {current.shape[2]}"f" | Overlap {overlap}"f" | Append {current.shape[2] - overlap}")
 
-                    timeline_output = torch.cat([timeline_output,current[:, :, overlap:]],dim=2)
+                      timeline_output = torch.cat([timeline_output,current[:, :, overlap:]],dim=2)
 
-                    print("----------------------------------------")
-                    print("Final Timeline :", tuple(timeline_output.shape))
-                    print("========================================")
+                      print("----------------------------------------")
+                      print("Final Timeline :", tuple(timeline_output.shape))
+                      print("========================================")
 
-                  if history_pixels is None:
-                      history_pixels = vae_decode(timeline_output, vae).cpu()
-                  else:
-                      section_latent_frames = (latent_window_size * 2 + 1) if is_last_section else (latent_window_size * 2)
-                      overlapped_frames = latent_window_size * 4 - 3
+                  # ==========================================================
+                  # POC : DIRECT TIMELINE VAE DECODE
+                  # Pixel-level soft blending DISABLED
+                  # ==========================================================
 
-                      current_pixels = vae_decode(timeline_output[:, :, :section_latent_frames], vae).cpu()
+                  history_pixels = vae_decode(
+                        timeline_output,
+                        vae
+                    ).cpu()
 
-                      print()
-                      print("===== VAE Decode Info =====")
-                      print("Shape :", tuple(current_pixels.shape))
-                      print("Min   :", float(current_pixels.min()))
-                      print("Max   :", float(current_pixels.max()))
-                      print("Dtype :", current_pixels.dtype)
-                      print("===========================")
-                      print()
-                
-                      history_pixels = soft_append_bcthw(current_pixels, history_pixels, overlapped_frames)
-
+                  print()
+                  print("===== DIRECT TIMELINE VAE DECODE =====")
+                  print("Shape :", tuple(history_pixels.shape))
+                  print("Min   :", float(history_pixels.min()))
+                  print("Max   :", float(history_pixels.max()))
+                  print("Dtype :", history_pixels.dtype)
+                  print("Pixel Blending : DISABLED")
+                  print("======================================")
+                  print()
 
 
                   if not high_vram:
-                     unload_complete_models()
-
+                        unload_complete_models()
 
 
                   #output_filename = os.path.join(outputs_folder, f'{job_id}_{total_generated_latent_frames}.mp4')
                   output_filename = os.path.join(outputs_folder, f'{job_id}.mp4')
 
-                  save_bcthw_as_mp4(history_pixels, output_filename, fps=16, crf=mp4_crf)
+                  save_bcthw_as_mp4(
+                        history_pixels,
+                        output_filename,
+                        fps=16,
+                        crf=mp4_crf
+                    )
 
-                  #print(f'Decoded. Current latent shape {real_history_latents.shape}; pixel shape {history_pixels.shape}')
+                    # print(f'Decoded. Current latent shape {real_history_latents.shape}; pixel shape {history_pixels.shape}')
 
                   stream.output_queue.push(('file', output_filename))
                   print(f"=== EXIT LOOP : latent_padding={latent_padding} ===")
