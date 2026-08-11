@@ -3,7 +3,42 @@ from diffusers_helper.hf_login import login
 
 import os
 import json
-os.environ['HF_HOME'] = os.path.abspath(os.path.realpath(os.path.join(os.path.dirname(__file__), './hf_download')))
+
+
+# ==========================================================
+# LOCAL HUGGING FACE CACHE
+# ==========================================================
+
+HF_CACHE = os.path.abspath(
+    os.path.realpath(
+        os.path.join(
+            os.path.dirname(__file__),
+            './hf_download'
+        )
+    )
+)
+
+HF_HUB_CACHE = os.path.join(
+    HF_CACHE,
+    'hub'
+)
+
+os.environ['HF_HOME'] = HF_CACHE
+os.environ['HF_HUB_CACHE'] = HF_HUB_CACHE
+os.environ['HUGGINGFACE_HUB_CACHE'] = HF_HUB_CACHE
+
+# IMPORTANT:
+# Never attempt an internet download during runtime.
+os.environ['HF_HUB_OFFLINE'] = '1'
+
+print()
+print("========================================")
+print("LOCAL HUGGING FACE CACHE")
+print("========================================")
+print("HF_HOME      :", os.environ['HF_HOME'])
+print("HF_HUB_CACHE :", os.environ['HF_HUB_CACHE'])
+print("HF_HUB_OFFLINE : 1")
+print("========================================")
 
 
 
