@@ -207,19 +207,27 @@ def load_prompt_queue():
 
     for index, item in enumerate(prompts):
         if not isinstance(item, dict):
-            raise ValueError(
-                f"Prompt entry {index} must be an object."
-            )
+            raise ValueError(f"Prompt entry {index} must be an object.")
 
         if "positive" not in item:
-            raise ValueError(
-                f"Prompt entry {index} is missing 'positive'."
-            )
+            raise ValueError(f"Prompt entry {index} is missing 'positive'.")
 
         if "negative" not in item:
-            raise ValueError(
-                f"Prompt entry {index} is missing 'negative'."
-            )
+            raise ValueError(f"Prompt entry {index} is missing 'negative'.")
+
+        if "duration" not in item:
+            raise ValueError(f"Prompt entry {index} is missing 'duration'.")
+
+        try:
+            item["duration"] = float(item["duration"])
+        except (TypeError, ValueError):
+            raise ValueError(f"Prompt entry {index} has an invalid 'duration'.")
+
+        if item["duration"] <= 0:
+            raise ValueError(f"Prompt entry {index} duration must be greater than 0.")
+
+
+
 
     print()
     print("========================================")
@@ -259,12 +267,13 @@ def load_prompt_section(index):
         index,
         f"### Prompt Section {index + 1} / {len(prompts)}",
         item["positive"],
-        item["negative"]
+        item["negative"],
+        item["duration"]
     )
 
 
 
-def save_prompt_section(index, positive, negative):
+def save_prompt_section(index, positive, negative,duration):
     """
     Save the currently edited prompt section directly
     into prompt_queue.json.
@@ -284,6 +293,7 @@ def save_prompt_section(index, positive, negative):
     # Update the selected prompt section.
     prompts[index]["positive"] = positive
     prompts[index]["negative"] = negative
+    prompts[index]["duration"] = float(duration)
 
     # Write the updated queue back to JSON.
     with open(
@@ -329,7 +339,8 @@ def add_prompt_section():
 
     new_prompt = {
         "positive": "",
-        "negative": ""
+        "negative": "",
+        "duration": 3.0
     }
 
     prompts.append(new_prompt)
@@ -439,7 +450,8 @@ def delete_prompt_section(index):
         new_index,
         f"### Prompt Section {new_index + 1} / {len(prompts)}",
         item["positive"],
-        item["negative"]
+        item["negative"],
+        item["duration"]
     )
 
 
@@ -564,7 +576,6 @@ def build_render_config(
     timeline,
     positive_prompt,
     negative_prompt,
-    duration,
     steps,
     resolution,
     cfg_scale,
@@ -572,12 +583,32 @@ def build_render_config(
 ):
     render_timeline = reverse_render_sequence(timeline)
 
+    # ==========================================================
+    # Per-Segment Prompt Queue
+    # ==========================================================
+    prompt_queue = load_prompt_queue()
+
+    # ==========================================================
+    # Derived Total Duration
+    # ==========================================================
+    segment_durations = [
+        float(item["duration"])
+        for item in prompt_queue
+    ]
+
+    total_duration = sum(segment_durations)
+
     config = {
         "keyframes": render_timeline,
         "positive_prompt": positive_prompt,
         "negative_prompt": negative_prompt,
-        "prompt_queue": load_prompt_queue(),
-        "duration": float(duration),
+
+        # Full per-segment data
+        "prompt_queue": prompt_queue,
+
+        # Derived total duration
+        "duration": total_duration,
+
         "steps": int(steps),
         "resolution": resolution,
         "cfg_scale": float(cfg_scale),
@@ -606,7 +637,6 @@ def test_render_config(
     timeline,
     positive_prompt,
     negative_prompt,
-    duration,
     steps,
     resolution,
     cfg_scale,
@@ -616,7 +646,6 @@ def test_render_config(
         timeline,
         positive_prompt,
         negative_prompt,
-        duration,
         steps,
         resolution,
         cfg_scale,
@@ -663,7 +692,6 @@ def test_adapter_config(
     gallery_images,
     positive_prompt,
     negative_prompt,
-    duration,
     steps,
     resolution,
     cfg_scale,
@@ -675,7 +703,6 @@ def test_adapter_config(
         timeline,
         positive_prompt,
         negative_prompt,
-        duration,
         steps,
         resolution,
         cfg_scale,
@@ -854,11 +881,9 @@ def launch_webgui():
                 with gr.Group():
                     gr.Markdown("## ⚙ Render Settings")
 
-                    duration = gr.Number(label="Total Duration (seconds)",value=6,interactive=True)
-
                     steps = gr.Number(label="Steps",value=25,interactive=True)
 
-                    resolution = gr.Dropdown(["360p", "540p", "720p"],value="720p",label="Resolution",interactive=True)
+                    resolution = gr.Dropdown(["256p","360p", "540p", "720p"],value="720p",label="Resolution",interactive=True)
 
                     cfg_scale = gr.Number(label="CFG Scale",value=1.0,interactive=True)
 
@@ -962,15 +987,11 @@ def launch_webgui():
                             size="sm"
                         )
 
-                    positive_prompt = gr.Textbox(
-                        label="Positive Prompt",
-                        lines=8
-                    )
+                    positive_prompt = gr.Textbox(label="Positive Prompt",lines=8)
 
-                    negative_prompt = gr.Textbox(
-                        label="Negative Prompt",
-                        lines=5
-                    )
+                    negative_prompt = gr.Textbox(label="Negative Prompt",lines=5)
+
+                    duration = gr.Number(label="Duration (seconds)",value=3.0,minimum=0.1,precision=2,interactive=True)
 
                     with gr.Row():
                         prompt_add = gr.Button(
@@ -1004,7 +1025,6 @@ def launch_webgui():
                       library,
                       positive_prompt,
                       negative_prompt,
-                      duration,
                       steps,
                       resolution,
                       cfg_scale,
@@ -1043,6 +1063,7 @@ def launch_webgui():
                         prompt_section_label,
                         positive_prompt,
                         negative_prompt,
+                        duration,
                         timeline_html,
                     ],
                 )
@@ -1066,6 +1087,7 @@ def launch_webgui():
                         prompt_section_label,
                         positive_prompt,
                         negative_prompt,
+                        duration,
                         timeline_html,
                     ],
                 )
@@ -1080,6 +1102,7 @@ def launch_webgui():
                         prompt_section_state,
                         positive_prompt,
                         negative_prompt,
+                        duration,
                     ],
                     outputs=[
                         prompt_section_state,
@@ -1102,6 +1125,7 @@ def launch_webgui():
                         prompt_section_label,
                         positive_prompt,
                         negative_prompt,
+                        duration,
                     ],
                 )
 
@@ -1120,6 +1144,7 @@ def launch_webgui():
                         prompt_section_label,
                         positive_prompt,
                         negative_prompt,
+                        duration,
                     ],
                 )
 

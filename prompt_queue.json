@@ -1,24 +1,29 @@
 {
-  "prompts": [
-    {
-      "positive": "The woman is waiting to catch the ball",
-      "negative": "Teleport, Cutscene"
-    },
-    {
-      "positive": "While she was waiting to catch the ball, she suddenly hit by the ball",
-      "negative": "Teleport, Cutscene"
-    },
-    {
-      "positive": "She then suddenly fall down in the ground, and she was getting hurt",
-      "negative": "Teleport, Cutscene"
-    },
-    {
-      "positive": "She was picking up the ball and she gradually stand up",
-      "negative": "Teleport, Cutscene"
-    },
-    {
-      "positive": "She was going to standup again with confident",
-      "negative": "Teleport, Cutscene"
-    }
-  ]
+    "prompts": [
+        {
+            "positive": "The character is  preparing to jump",
+            "negative": "Teleport, Cutscene",
+            "duration": 0.5
+        },
+        {
+            "positive": "The character start to jump mid air",
+            "negative": "Teleport, Cutscene",
+            "duration": 1.0
+        },
+        {
+            "positive": "She then suddenly fall down in the ground, and she was getting hurt",
+            "negative": "Teleport, Cutscene",
+            "duration": 1.0
+        },
+        {
+            "positive": "She was picking up the ball and she gradually stand up",
+            "negative": "Teleport, Cutscene",
+            "duration": 1.0
+        },
+        {
+            "positive": "She was going to standup again with confident",
+            "negative": "Teleport, Cutscene",
+            "duration": 1.0
+        }
+    ]
 }

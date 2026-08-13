@@ -4,9 +4,9 @@ from diffusers_helper.hf_login import login
 import os
 import json
 
-
+"""
 # ==========================================================
-# LOCAL HUGGING FACE CACHE
+# LOCAL HUGGING FACE CACHE WINDOWS
 # ==========================================================
 
 HF_CACHE = os.path.abspath(
@@ -39,6 +39,49 @@ print("HF_HOME      :", os.environ['HF_HOME'])
 print("HF_HUB_CACHE :", os.environ['HF_HUB_CACHE'])
 print("HF_HUB_OFFLINE : 1")
 print("========================================")
+
+"""
+
+
+
+# ==========================================================
+# LOCAL HUGGING FACE CACHE NEW RUNPOD VERSION
+# ==========================================================
+
+HF_CACHE = os.path.abspath(
+    os.path.realpath(
+        os.path.join(
+            os.path.dirname(__file__),
+            './hf_download'
+        )
+    )
+)
+
+HF_HUB_CACHE = os.path.join(
+    HF_CACHE,
+    'hub'
+)
+
+os.environ['HF_HOME'] = HF_CACHE
+os.environ['HF_HUB_CACHE'] = HF_HUB_CACHE
+
+print()
+print("========================================")
+print("LOCAL HUGGING FACE CACHE")
+print("========================================")
+print("HF_HOME      :", os.environ['HF_HOME'])
+print("HF_HUB_CACHE :", os.environ['HF_HUB_CACHE'])
+print("========================================")
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -100,8 +143,11 @@ image_encoder = SiglipVisionModel.from_pretrained("lllyasviel/flux_redux_bfl", s
 
 def load_transfomer():
     print("Loading transformer ...")
-    #transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained('lllyasviel/FramePackI2V_HY', torch_dtype=torch.bfloat16).cpu()
-    transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained(f"{os.environ['HF_HOME']}/hub/models--lllyasviel--FramePackI2V_HY/snapshots/86cef4396041b6002c957852daac4c91aaa47c79", torch_dtype=torch.bfloat16).cpu()
+    #WINDOWS VERSION
+    #transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained(f"{os.environ['HF_HOME']}/hub/models--lllyasviel--FramePackI2V_HY/snapshots/86cef4396041b6002c957852daac4c91aaa47c79", torch_dtype=torch.bfloat16).cpu()
+    
+    #RUNPOD VERSION
+    transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained("lllyasviel/FramePackI2V_HY",torch_dtype=torch.bfloat16).cpu()
     transformer.eval()
     transformer.high_quality_fp32_output_for_inference = True
     print("transformer.high_quality_fp32_output_for_inference = True")
@@ -217,6 +263,7 @@ class SegmentRuntime:
     def __init__(self):
 
         self.segment_index = 0
+        self.target_output_frames = 0
 
         self.start_index = 0
         self.end_index = 1
@@ -704,24 +751,28 @@ def worker(
 
     planner.build_section_ownership(total_latent_sections)
 
+
+
     # ==========================================================
-    # M12 : Distribute User Duration
+    # M12 : Per-Segment Duration
     # ==========================================================
 
     total_segments = max(len(planner.segments), 1)
 
     if len(prompt_queue) < total_segments:
-       raise ValueError(
-        f"Prompt queue contains {len(prompt_queue)} prompts, "
-        f"but {total_segments} segments are required."
-      )
+        raise ValueError(f"Prompt queue contains {len(prompt_queue)} prompts, "f"but {total_segments} segments are required.")
 
-    segment_duration = (total_second_length / total_segments)
-
-    
 
     for segment in planner.segments:
-      segment.duration_seconds = segment_duration
+
+        segment_index = segment.segment_index
+
+        segment.duration_seconds = float(prompt_queue[segment_index]["duration"])
+
+
+
+
+        
 
     print()
     print("========================================")
@@ -1066,6 +1117,13 @@ def worker(
         # ==========================================================
 
         for runtime_segment in runtime.segment_collection:
+
+             # ==========================================================
+            # Per-Segment Generated Latents
+            # ==========================================================
+            segment_generated_latents = []
+
+
             print()
             print("========================================")
             print(f"RUN SEGMENT {runtime_segment.segment_index}")
@@ -1270,13 +1328,25 @@ def worker(
             # TEMPORAL START CONDITIONING
             # ----------------------------------------------------------
 
+            # ----------------------------------------------------------
+            # TEMPORAL START CONDITIONING
+            # ----------------------------------------------------------
+
             if incoming_motion is not None:
 
-               temporal_start_embed = (segment_start_embed + incoming_motion * 0.15)
+                temporal_strength = min(
+                    0.15 * runtime_segment.segment_index,
+                    0.45
+                )
+
+                temporal_start_embed = (
+                    segment_start_embed
+                    + incoming_motion * temporal_strength
+                )
 
             else:
 
-               temporal_start_embed = segment_start_embed
+                temporal_start_embed = segment_start_embed
 
 
             image_encoder_last_hidden_state = (temporal_start_embed * 0.5 + segment_end_embed * 0.5)
@@ -1493,6 +1563,7 @@ def worker(
                 clean_latents_4x = torch.zeros_like(clean_latents_4x)
 
 
+
                 # ==========================================================
                 # POC-1 : Three Keyframe Conditioning
                 # ==========================================================
@@ -1510,6 +1581,12 @@ def worker(
 
                 if is_first_section:
                    clean_latents_post = planner_end_latent
+
+
+                  
+
+
+
 
                 # ==========================================================
                 # Planner Conditioning
@@ -1625,7 +1702,11 @@ def worker(
                     callback=callback,
                     )
 
+                # ==========================================================
+                # Per-Segment Output Capture
+                # ==========================================================
 
+                segment_generated_latents.append(generated_latents.detach().clone())
                 
 
                 # ===========================================
@@ -1728,14 +1809,32 @@ def worker(
                 #LATENT STORED
                 runtime_segment.generated_latents = real_history_latents.detach().clone()
 
+
+                # ==========================================================
+                # M3 : TARGET OUTPUT FRAME COUNT
+                # ==========================================================
+                OUTPUT_FPS = 16
+
+                target_output_frames = round(runtime_segment.duration_seconds * OUTPUT_FPS)
+               
+
+                runtime_segment.target_output_frames = target_output_frames
+               
+
                 print()
                 print("========================================")
-                print("M2 : LATENT STORED")
+                print("M3 : SEGMENT OUTPUT VERIFIED")
                 print("========================================")
+                print("Target Frames :", target_output_frames)
+                print("Stored Target Frames :", runtime_segment.target_output_frames)
                 print("Segment :", runtime_segment.segment_index)
-                print("Shape   :", runtime_segment.generated_latents.shape)
+                print("Sections:", len(segment_generated_latents))
+                print("Shape   :", tuple(runtime_segment.generated_latents.shape))
+                print("Frames  :", runtime_segment.generated_latents.shape[2])
                 print("========================================")
 
+
+                
 
 
                 # ==========================================================
@@ -1888,6 +1987,37 @@ def worker(
                         timeline_output,
                         vae
                     ).cpu()
+
+
+
+                  print()
+                  print("========================================")
+                  print("M7 : FINAL OUTPUT DURATION")
+                  print("========================================")
+
+                  final_frame_count = history_pixels.shape[2]
+                  final_duration = final_frame_count / 16.0
+                  target_total_frames = round(
+                      sum(
+                            seg.duration_seconds
+                            for seg in runtime.segment_collection
+                        ) * 16.0
+                  )
+
+                  target_total_duration = target_total_frames / 16.0
+
+                  print("Generated Frames :", final_frame_count)
+                  print("Generated Duration :", final_duration)
+                  print("Target Frames :", target_total_frames)
+                  print("Target Duration :", target_total_duration)
+                  print("========================================")
+                                    
+
+
+
+
+
+
 
                   print()
                   print("===== DIRECT TIMELINE VAE DECODE =====")

@@ -1,0 +1,51 @@
+STEP 1
+mkdir -p /workspace/FramePackPlus/hf_download/hub
+
+
+
+STEP 2
+unset HF_HUB_OFFLINE
+unset TRANSFORMERS_OFFLINE
+unset HF_DATASETS_OFFLINE
+
+
+
+STEP 3
+python -c "
+from huggingface_hub import snapshot_download
+
+snapshot_download(
+    repo_id='hunyuanvideo-community/HunyuanVideo',
+    revision='e8c2aaa66fe3742a32c11a6766aecbf07c56e773',
+    cache_dir='/workspace/FramePackPlus/hf_download/hub'
+)
+"
+
+
+
+
+STEP 4
+
+python -c "
+from huggingface_hub import snapshot_download
+
+snapshot_download(
+    repo_id='lllyasviel/FramePackI2V_HY',
+    revision='86cef4396041b6002c957852daac4c91aaa47c79',
+    cache_dir='/workspace/FramePackPlus/hf_download/hub'
+)
+"
+
+
+
+STEP 5
+
+python -c "
+from huggingface_hub import snapshot_download
+
+snapshot_download(
+    repo_id='lllyasviel/flux_redux_bfl',
+    revision='45b801affc54ff2af4e5daf1b282e0921901db87',
+    cache_dir='/workspace/FramePackPlus/hf_download/hub'
+)
+"
